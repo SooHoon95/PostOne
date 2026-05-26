@@ -1,103 +1,165 @@
 # TODO — 사용자가 직접 처리할 항목
 
-이 파일은 자동화로 끝낼 수 없는 수동 단계를 정리한 것입니다. 깨어나면 위에서부터 차례로 처리하세요.
-
 ## ✅ 자동 완료된 것
 
+### Plan 1 (커밋 10개)
 - Next.js 14 + Tailwind + shadcn-style UI + Vitest 스캐폴드
-- Supabase 클라이언트(서버/브라우저) + 마이그레이션 SQL (`supabase/migrations/0001_init.sql`)
-- 인증 (Sign Up / Sign In / 미들웨어 / 보호 라우트 / 대시보드 셸)
-- AES-256-GCM 토큰 암호화 유틸 + `TOKEN_ENCRYPTION_KEY` 자동 생성 → `.env.local`에 주입됨
-- LinkedIn OAuth 흐름 (start route, callback route, 연동 페이지) — 코드 완성, 미동작 검증
-- LinkedIn 발행 API 클라이언트 (`POST /rest/posts`) — 단위 테스트 통과
-- 글쓰기 에디터 + 발행 Server Action + 발행 이력 화면
-- Playwright 스모크 E2E 설정 + 시드 유저 자동 생성 (`scripts/seed-e2e-user.mjs` 실행 완료)
-- 전체 단위 테스트: **18개 모두 통과** ✅
-- TypeScript 타입체크 통과 ✅
-- 9개 커밋으로 정리
+- Supabase 인증 (Sign Up / Sign In / 미들웨어 / 보호 라우트)
+- AES-256-GCM 토큰 암호화 + `TOKEN_ENCRYPTION_KEY` 자동 생성
+- LinkedIn OAuth + 발행 API + 발행 이력
+- **LinkedIn API 버전 픽스** (202405 → 202509, 426 NONEXISTENT_VERSION 해결)
+- Playwright 스모크 E2E + 시드 유저 자동 생성
 
-## 🛑 사용자 수동 처리 항목
+### Plan 2 (커밋 추가, Threads + Instagram + 카드 자동 생성)
+- DB 마이그레이션 `0002_add_threads_instagram.sql` (작성됨, 실행 필요)
+- **Threads**: OAuth (short → long-lived token), 2-step publish (container → publish)
+- **Instagram**: Facebook OAuth, Pages → IG Business 자동 매핑, 단일/캐러셀 발행
+- **카드 자동 생성**: Satori + Resvg → PNG → Supabase Storage 업로드
+- 3개 템플릿: minimal-white / gradient / photo-overlay
+- Pretendard 폰트 CDN 자동 로드 (한국어 대응)
+- **멀티 채널 에디터 UI**: 채널 체크박스 + Instagram 옵션(템플릿/제목) + 결과 표시
+- 채널별 글자수 검증 (LinkedIn 3000 / Threads 500 / IG 2200)
 
-### 1. Supabase 마이그레이션 SQL 실행 확인 (이미 했다면 skip)
+### 검증 결과
+- 단위 테스트: **45개 통과** ✅
+- TypeScript: 컴파일 오류 0 ✅
+- 프로덕션 빌드: 14개 라우트 정상 ✅
 
-이미 실행했다고 알려주셨지만 다음 3개 테이블이 Supabase 콘솔 > Table Editor에 있는지 재확인:
-- `profiles`
-- `linkedin_connections`
-- `posts`
+---
 
-없으면 `supabase/migrations/0001_init.sql` 을 SQL Editor에서 실행.
+## 🛑 사용자 수동 처리 항목 (회사에서 돌아온 후)
 
-### 2. Supabase 이메일 확인 비활성화 (선택, 개발 편의)
+### 1. Supabase 마이그레이션 0002 실행 ⚠️ 필수
 
-기본적으로 가입 시 이메일 확인 링크가 발송됩니다. 개발 중에는 끄는 게 편함:
+**없으면 Threads/Instagram 발행 시 DB 에러로 실패합니다.**
 
-1. Supabase 콘솔 → **Authentication → Sign In / Up** (또는 Providers)
-2. **Email** 섹션 → **Confirm email** OFF
-3. 또는 그냥 본인 메일함 확인하고 링크 클릭
+1. https://supabase.com/dashboard → onepost 프로젝트 → **SQL Editor**
+2. **New query** → `~/Desktop/Code/onepost/supabase/migrations/0002_add_threads_instagram.sql` 내용 전체 붙여넣기
+3. **Run**
+4. Table Editor에서 `threads_connections`, `instagram_connections` 테이블 + `posts.media_urls` 컬럼 생성 확인
 
-### 3. dev 서버 띄우고 가입 / LinkedIn 연동 흐름 확인
+또는 터미널에서:
+```bash
+cat ~/Desktop/Code/onepost/supabase/migrations/0002_add_threads_instagram.sql | pbcopy
+```
+하고 콘솔에 붙여넣기.
+
+### 2. Supabase Storage 버킷 생성 (Instagram 카드 호스팅용) ⚠️ 필수
+
+Instagram은 공개 URL 이미지가 필요합니다.
+
+1. Supabase 콘솔 → **Storage** → **New bucket**
+2. Name: `cards`
+3. **Public bucket 체크** ✅ (Instagram CDN이 크롤할 수 있어야 함)
+4. **Save**
+
+### 3. Meta Developer Portal 앱 생성 (Threads + Instagram 공통)
+
+1. https://developers.facebook.com/apps → **Create App**
+2. Use case: **Other** 또는 **Customize**
+3. App type: **Business**
+4. App name: `OnePost (Dev)` / 이메일 입력 → Create
+
+#### 3-A. Threads API 추가
+1. 사이드바 **Add Product** → **Threads API** → Set Up
+2. **Settings** → OAuth redirect URI에 추가:
+   ```
+   http://localhost:3000/api/threads/oauth/callback
+   ```
+3. **App ID** + **App Secret** 메모 (Threads용)
+
+#### 3-B. Instagram Graph API + Facebook Login 추가
+1. 같은 앱에 **Add Product** → **Instagram → Instagram Graph API** Set Up
+2. 또 추가 **Add Product** → **Facebook Login → Web** Set Up
+3. **Facebook Login → Settings** → Valid OAuth Redirect URIs에 추가:
+   ```
+   http://localhost:3000/api/instagram/oauth/callback
+   ```
+4. Settings → Basic에서 다시 한 번 **App ID** + **App Secret** 메모 (Instagram용 — 같은 앱이면 같은 값)
+
+> 💡 Meta는 하나의 앱에 Threads + Instagram + Facebook Login 다 붙일 수 있습니다.
+> 같은 App ID/Secret 을 `THREADS_*`와 `INSTAGRAM_*` 양쪽에 넣어도 OK.
+> 단, OAuth redirect URI는 둘 다 등록해야 함.
+
+### 4. Instagram 계정 사전 준비
+
+Instagram API는 **Business/Creator 계정만** 지원합니다.
+
+1. 본인 Instagram 앱에서:
+   - **설정 → 계정 → 프로페셔널 계정으로 전환** (없으면)
+   - **비즈니스** 또는 **크리에이터** 선택
+2. **Facebook Page**와 연결:
+   - Facebook에서 본인 Page (없으면 새로 생성)
+   - Instagram 앱 → 설정 → **연결된 계정** → Facebook → 연결
+
+이거 안 하면 OAuth 콜백에서 *"Instagram Business 계정이 연결된 Facebook Page를 찾을 수 없습니다"* 에러.
+
+### 5. `.env.local`에 신규 값 채우기
+
+`~/Desktop/Code/onepost/.env.local` 편집기로 열어서:
+
+```bash
+THREADS_CLIENT_ID=<3-A에서 얻은 App ID>
+THREADS_CLIENT_SECRET=<3-A에서 얻은 App Secret>
+THREADS_REDIRECT_URI=http://localhost:3000/api/threads/oauth/callback
+
+INSTAGRAM_APP_ID=<3-B에서 얻은 App ID — 보통 THREADS_CLIENT_ID와 동일>
+INSTAGRAM_APP_SECRET=<3-B에서 얻은 App Secret — 보통 동일>
+INSTAGRAM_REDIRECT_URI=http://localhost:3000/api/instagram/oauth/callback
+```
+
+저장 후 dev 서버 **재시작** (`Ctrl+C` 후 `pnpm dev` 다시).
+
+### 6. dev 서버 띄우고 전체 흐름 검증
 
 ```bash
 cd ~/Desktop/Code/onepost
 pnpm dev
 ```
 
-브라우저에서:
-1. http://localhost:3000 → /login 으로 자동 리다이렉트되어야 함 ✅
-2. `/signup` 으로 본인 이메일로 가입
-3. (위 2번을 안 했다면) 메일 확인 클릭
-4. 로그인 후 대시보드 화면 표시 확인
-5. `/settings/connections` → "연결하기" 클릭 → LinkedIn 로그인 + 권한 동의 → 자동으로 `?connected=1`로 돌아오는지 확인
-6. Supabase 콘솔 → `linkedin_connections` 테이블에 row 1개 (토큰은 hex 암호문) 확인
+1. http://localhost:3000/login → 로그인
+2. `/settings/connections` → **3개 채널 카드** (LinkedIn ✅ / Threads / Instagram) 표시 확인
+3. **Threads "연결하기"** → Meta 로그인 → 권한 동의 → `?connected=threads` 확인
+4. **Instagram "연결하기"** → 동일 흐름 → `?connected=instagram` 확인
+5. `/compose` → 본문 작성 + **3개 채널 체크** + Instagram 옵션 (제목/템플릿) → 발행
+6. 결과 카드에 채널별 성공/실패 확인
+7. 실제 Threads, Instagram 프로필 새로고침 → 글 + 캐러셀 이미지 노출 확인
 
-### 4. 실제 LinkedIn 글 발행 테스트
+### 7. 테스트 잔여물 제거
 
-5번 연동 완료 후:
-1. `/compose` 접속
-2. 짧은 테스트 글 작성 (예: `OnePost 첫 발행 테스트 - 시각 ${new Date().toISOString()}`)
-3. "LinkedIn에 발행" 클릭
-4. URN 표시 확인
-5. 본인 LinkedIn 프로필 새로고침 → 글이 실제로 올라가 있는지 확인
-6. **테스트 잔여물 제거**: LinkedIn 웹에서 본인이 직접 삭제
+본인 LinkedIn / Threads / Instagram에서 테스트 글 직접 삭제.
 
-### 5. Playwright E2E 실행
+### 8. (선택) GitHub 푸시
 
-Chromium 설치가 자동 완료되었다면:
-```bash
-cd ~/Desktop/Code/onepost
-pnpm e2e
-```
-
-E2E 시드 유저는 `scripts/seed-e2e-user.mjs`로 자동 생성되어 `.env.local`에 자격증명이 들어가 있습니다.
-
-만약 Chromium 설치가 안 됐다면:
-```bash
-pnpm dlx playwright install chromium
-```
-
-### 6. (선택) 결과물 평가
-
-문제 없으면 GitHub에 푸시:
 ```bash
 cd ~/Desktop/Code/onepost
 gh repo create onepost --private --source=. --remote=origin --push
 ```
 
-## 다음 Plan으로 가려면
-
-Plan 1이 완전히 검증되면 Plan 2 (Threads + Instagram + 인스타 카드) 작성 → 실행 들어가면 됩니다.
-
-전체 디자인 문서: `~/Desktop/Code/TheReader_Project/docs/superpowers/specs/2026-05-26-onepost-design.md`
-Plan 1 문서: `~/Desktop/Code/TheReader_Project/docs/superpowers/plans/2026-05-26-onepost-01-foundation-linkedin.md`
+---
 
 ## 알려진 이슈 / 주의사항
 
-1. **shadcn 4.x Nova vs Classic**: 플랜에서는 classic shadcn 사용 가정이었으나 실제로는 4.x Nova가 설치되며 lib/utils와 components/ui를 안 만들었습니다. → **수동으로 lib/utils.ts와 5개 컴포넌트(Button, Input, Label, Card, Textarea)를 작성**해서 해결. 기능적으로 동일.
+1. **LinkedIn API 버전**: 현재 `202509` 사용. LinkedIn은 매월 새 버전을 내고 12개월 후 만료. 만료되면 `lib/linkedin/client.ts`의 `VERSION` 상수 갱신 필요.
 
-2. **pnpm 11**: msw 빌드 스크립트 차단 이슈 → `pnpm-workspace.yaml` 에 `allowBuilds.msw: false` 추가로 해결.
+2. **Instagram 검토 모드**:
+   - 개발 모드에서는 **앱 관리자/개발자/테스터 본인 계정만** 발행 가능
+   - 다른 사용자에게 풀려면 Meta App Review 통과 필요 (스코프별 검토)
 
-3. **사용 안 하는 의존성**: `@base-ui/react`, `shadcn`, `tw-animate-css` 가 shadcn init이 추가했으나 실제로 import되지 않음. 마음 편하면 `pnpm remove @base-ui/react shadcn tw-animate-css` 로 제거 가능.
+3. **Threads 일일 한도**: 사용자당 250 게시물/일. 무제한 발행 마케팅 시 주의.
 
-4. **LinkedIn OAuth Redirect URI**: 개발자 앱에 등록된 URI는 `http://localhost:3000/api/linkedin/oauth/callback`. 배포 시 운영 도메인용 URI 추가 등록 필요.
+4. **인스타 카드 폰트**: Pretendard를 jsdelivr CDN에서 첫 호출 시 다운로드 → 메모리 캐시. 첫 발행만 약간 느림 (~1-2초). 이후 캐시됨.
 
-5. **Server Actions과 redirect**: `signIn` 후 redirect가 throw로 처리됨 — 정상이며 Next.js가 자동으로 변환. 클라이언트 측 에러 핸들링은 `result.error`만 신경쓰면 됨.
+5. **Supabase Storage `cards` 버킷**: Public 으로 설정해야 Instagram CDN이 이미지를 가져옴. 만약 보안 우려가 있으면 v1.1에서 signed URL 방식으로 전환 검토.
+
+6. **shadcn Nova 미사용 의존성**: `@base-ui/react`, `shadcn`, `tw-animate-css` 가 install 부산물로 들어있음. 정리하려면 `pnpm remove @base-ui/react shadcn tw-animate-css`.
+
+7. **`scripts/seed-e2e-user.mjs`**: 이미 1회 실행되어 .env.local에 `E2E_TEST_EMAIL`/`E2E_TEST_PASSWORD` 들어가 있음. 재실행하면 새 유저 생성됨 (의도된 동작).
+
+---
+
+## 문서
+
+- 디자인: `~/Desktop/Code/TheReader_Project/docs/superpowers/specs/2026-05-26-onepost-design.md`
+- Plan 1: `~/Desktop/Code/TheReader_Project/docs/superpowers/plans/2026-05-26-onepost-01-foundation-linkedin.md`
+- Plan 2: 별도 문서 없음 (디자인 문서 + 이 TODO + 커밋 메시지 참고)

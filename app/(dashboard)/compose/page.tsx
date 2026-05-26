@@ -1,11 +1,43 @@
-import { Editor } from "@/components/editor";
-import { publishToLinkedIn } from "./actions";
+import { requireUser } from "@/lib/auth/get-user";
+import { createClient } from "@/lib/supabase/server";
+import { MultiChannelEditor } from "@/components/multi-channel-editor";
+import { publishMulti } from "./actions";
 
-export default function ComposePage() {
+export default async function ComposePage() {
+  const user = await requireUser();
+  const supabase = createClient();
+
+  const [linkedin, threads, instagram] = await Promise.all([
+    supabase
+      .from("linkedin_connections")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("threads_connections")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("instagram_connections")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+  ]);
+
+  const connectedChannels = {
+    linkedin: !!linkedin.data,
+    threads: !!threads.data,
+    instagram: !!instagram.data,
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">글쓰기</h1>
-      <Editor publish={publishToLinkedIn} />
+      <MultiChannelEditor
+        publish={publishMulti}
+        connectedChannels={connectedChannels}
+      />
     </div>
   );
 }

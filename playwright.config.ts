@@ -17,12 +17,13 @@ export default defineConfig({
   retries: 0,
   workers: 1,
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:3100",
     trace: "on-first-retry",
   },
   webServer: {
-    command: "pnpm dev",
-    url: "http://localhost:3000",
+    // 사용자의 dev 서버(3000)와 격리하기 위해 별도 포트 사용
+    command: "pnpm dev --port 3100",
+    url: "http://localhost:3100",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },
