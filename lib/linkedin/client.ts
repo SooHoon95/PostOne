@@ -1,5 +1,5 @@
 const POSTS_URL = "https://api.linkedin.com/rest/posts";
-const VERSION = "202405";
+const VERSION = "202509";
 
 type PublishParams = {
   accessToken: string;

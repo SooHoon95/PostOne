@@ -25,7 +25,7 @@ describe("LinkedIn publish client", () => {
     expect(url).toBe("https://api.linkedin.com/rest/posts");
     expect(init.method).toBe("POST");
     expect(init.headers.Authorization).toBe("Bearer tok");
-    expect(init.headers["LinkedIn-Version"]).toBe("202405");
+    expect(init.headers["LinkedIn-Version"]).toBe("202509");
     expect(init.headers["X-Restli-Protocol-Version"]).toBe("2.0.0");
     const body = JSON.parse(init.body);
     expect(body.author).toBe("urn:li:person:abc");
