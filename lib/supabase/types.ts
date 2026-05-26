@@ -17,6 +17,35 @@ export type LinkedInConnection = {
   created_at: string;
 };
 
+export type ThreadsConnection = {
+  id: string;
+  user_id: string;
+  threads_user_id: string;
+  username: string | null;
+  access_token_ciphertext: string;
+  access_token_iv: string;
+  access_token_tag: string;
+  expires_at: string;
+  scope: string;
+  created_at: string;
+};
+
+export type InstagramConnection = {
+  id: string;
+  user_id: string;
+  instagram_business_id: string;
+  facebook_page_id: string;
+  username: string | null;
+  access_token_ciphertext: string;
+  access_token_iv: string;
+  access_token_tag: string;
+  expires_at: string;
+  scope: string;
+  created_at: string;
+};
+
+export type Channel = "linkedin" | "threads" | "instagram";
+
 export type PublishStatus = "pending" | "success" | "failed";
 
 export type Post = {
@@ -28,5 +57,6 @@ export type Post = {
   status: PublishStatus;
   error_message: string | null;
   published_at: string | null;
+  media_urls: string[] | null;
   created_at: string;
 };
