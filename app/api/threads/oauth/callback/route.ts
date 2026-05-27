@@ -11,26 +11,26 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
   const user = await requireUser();
-  const url = new URL(request.url);
+  const url = new URL(process.env.NEXT_PUBLIC_APP_URL ?? request.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const error = url.searchParams.get("error");
 
   if (error) {
     return NextResponse.redirect(
-      new URL(`/settings/connections?error=${error}`, request.url)
+      new URL(`/settings/connections?error=${error}`, process.env.NEXT_PUBLIC_APP_URL ?? request.url)
     );
   }
   if (!code || !state) {
     return NextResponse.redirect(
-      new URL("/settings/connections?error=missing_params", request.url)
+      new URL("/settings/connections?error=missing_params", process.env.NEXT_PUBLIC_APP_URL ?? request.url)
     );
   }
 
   const cookieState = cookies().get("threads_oauth_state")?.value;
   if (state !== cookieState) {
     return NextResponse.redirect(
-      new URL("/settings/connections?error=state_mismatch", request.url)
+      new URL("/settings/connections?error=state_mismatch", process.env.NEXT_PUBLIC_APP_URL ?? request.url)
     );
   }
 
@@ -63,20 +63,20 @@ export async function GET(request: Request) {
       return NextResponse.redirect(
         new URL(
           `/settings/connections?error=${encodeURIComponent(dbError.message)}`,
-          request.url
+          process.env.NEXT_PUBLIC_APP_URL ?? request.url
         )
       );
     }
 
     return NextResponse.redirect(
-      new URL("/settings/connections?connected=threads", request.url)
+      new URL("/settings/connections?connected=threads", process.env.NEXT_PUBLIC_APP_URL ?? request.url)
     );
   } catch (e) {
     const msg = e instanceof Error ? e.message : "unknown";
     return NextResponse.redirect(
       new URL(
         `/settings/connections?error=${encodeURIComponent(msg)}`,
-        request.url
+        process.env.NEXT_PUBLIC_APP_URL ?? request.url
       )
     );
   }
