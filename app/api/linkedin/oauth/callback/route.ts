@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
   const user = await requireUser();
-  const url = new URL(process.env.NEXT_PUBLIC_APP_URL ?? request.url);
+  const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const error = url.searchParams.get("error");
