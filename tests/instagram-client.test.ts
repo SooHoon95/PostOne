@@ -4,8 +4,8 @@ beforeEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("Instagram publish client", () => {
-  it("publishSingle creates container + publishes", async () => {
+describe("Instagram publish client (new API, 2024+)", () => {
+  it("publishSingle creates container + publishes via graph.instagram.com", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({
@@ -20,7 +20,7 @@ describe("Instagram publish client", () => {
 
     const { publishSingle } = await import("@/lib/instagram/client");
     const result = await publishSingle({
-      pageAccessToken: "pat",
+      accessToken: "tok",
       igUserId: "ig_42",
       imageUrl: "https://cdn/x.png",
       caption: "Hi",
@@ -29,10 +29,12 @@ describe("Instagram publish client", () => {
     expect(result.mediaId).toBe("media_99");
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const [containerUrl] = fetchMock.mock.calls[0];
-    expect(String(containerUrl)).toContain("/v18.0/ig_42/media");
+    expect(String(containerUrl)).toContain("graph.instagram.com/v21.0/ig_42/media");
     expect(String(containerUrl)).toContain("image_url=https");
     const [publishUrl] = fetchMock.mock.calls[1];
-    expect(String(publishUrl)).toContain("/v18.0/ig_42/media_publish");
+    expect(String(publishUrl)).toContain(
+      "graph.instagram.com/v21.0/ig_42/media_publish"
+    );
     expect(String(publishUrl)).toContain("creation_id=container_1");
   });
 
@@ -65,7 +67,7 @@ describe("Instagram publish client", () => {
 
     const { publishCarousel } = await import("@/lib/instagram/client");
     const result = await publishCarousel({
-      pageAccessToken: "pat",
+      accessToken: "tok",
       igUserId: "ig_42",
       imageUrls: ["a", "b", "c"],
       caption: "Carousel",
@@ -82,7 +84,7 @@ describe("Instagram publish client", () => {
     const { publishCarousel } = await import("@/lib/instagram/client");
     await expect(
       publishCarousel({
-        pageAccessToken: "p",
+        accessToken: "t",
         igUserId: "i",
         imageUrls: ["a"],
         caption: "c",
@@ -94,7 +96,7 @@ describe("Instagram publish client", () => {
     const { publishCarousel } = await import("@/lib/instagram/client");
     await expect(
       publishCarousel({
-        pageAccessToken: "p",
+        accessToken: "t",
         igUserId: "i",
         imageUrls: Array(11).fill("x"),
         caption: "c",
@@ -106,7 +108,7 @@ describe("Instagram publish client", () => {
     const { publishSingle } = await import("@/lib/instagram/client");
     await expect(
       publishSingle({
-        pageAccessToken: "p",
+        accessToken: "t",
         igUserId: "i",
         imageUrl: "u",
         caption: "x".repeat(2201),

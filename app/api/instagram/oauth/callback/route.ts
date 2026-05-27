@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/auth/get-user";
 import {
   exchangeCodeForToken,
   exchangeForLongLivedToken,
-  findInstagramBusinessAccount,
+  fetchUserInfo,
 } from "@/lib/instagram/oauth";
 import { encryptToken } from "@/lib/crypto/encrypt";
 import { createClient } from "@/lib/supabase/server";
@@ -37,10 +37,9 @@ export async function GET(request: Request) {
   try {
     const shortToken = await exchangeCodeForToken(code);
     const longToken = await exchangeForLongLivedToken(shortToken.access_token);
-    const igInfo = await findInstagramBusinessAccount(longToken.access_token);
+    const info = await fetchUserInfo(longToken.access_token);
 
-    // Page Access Token을 암호화해서 저장 (실제 발행은 page token으로 함)
-    const enc = encryptToken(igInfo.pageAccessToken);
+    const enc = encryptToken(longToken.access_token);
     const expiresAt = new Date(Date.now() + longToken.expires_in * 1000);
 
     const supabase = createClient();
@@ -49,15 +48,14 @@ export async function GET(request: Request) {
       .upsert(
         {
           user_id: user.id,
-          instagram_business_id: igInfo.igUserId,
-          facebook_page_id: igInfo.pageId,
-          username: igInfo.username,
+          instagram_business_id: info.user_id,
+          facebook_page_id: null, // New API doesn't use FB Page
+          username: info.username ?? null,
           access_token_ciphertext: enc.ciphertext,
           access_token_iv: enc.iv,
           access_token_tag: enc.tag,
           expires_at: expiresAt.toISOString(),
-          scope:
-            "instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement,business_management",
+          scope: "instagram_business_basic,instagram_business_content_publish",
         },
         { onConflict: "user_id" }
       );

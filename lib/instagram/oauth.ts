@@ -1,24 +1,20 @@
+// Instagram API with Business Login (2024+ NEW API)
+// Reference: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login
 import { randomBytes } from "crypto";
 import type {
-  FacebookTokenResponse,
-  FacebookPagesResponse,
-  InstagramAccountInfo,
+  InstagramShortTokenResponse,
+  InstagramLongTokenResponse,
+  InstagramUserInfo,
 } from "./types";
 
-const FB_VERSION = "v18.0";
-const AUTH_URL = `https://www.facebook.com/${FB_VERSION}/dialog/oauth`;
-const TOKEN_URL = `https://graph.facebook.com/${FB_VERSION}/oauth/access_token`;
-const LONG_LIVED_URL = `https://graph.facebook.com/${FB_VERSION}/oauth/access_token`;
-const PAGES_URL = `https://graph.facebook.com/${FB_VERSION}/me/accounts`;
-const IG_USER_URL = (igId: string) =>
-  `https://graph.facebook.com/${FB_VERSION}/${igId}`;
+const AUTH_URL = "https://www.instagram.com/oauth/authorize";
+const TOKEN_URL = "https://api.instagram.com/oauth/access_token";
+const LONG_LIVED_URL = "https://graph.instagram.com/access_token";
+const USERINFO_URL = "https://graph.instagram.com/v21.0/me";
 
 const SCOPES = [
-  "instagram_basic",
-  "instagram_content_publish",
-  "pages_show_list",
-  "pages_read_engagement",
-  "business_management",
+  "instagram_business_basic",
+  "instagram_business_content_publish",
 ].join(",");
 
 export function generateState(): string {
@@ -37,92 +33,57 @@ export function buildAuthUrl(state: string): string {
 
 export async function exchangeCodeForToken(
   code: string
-): Promise<FacebookTokenResponse> {
-  const url = new URL(TOKEN_URL);
-  url.searchParams.set("client_id", process.env.INSTAGRAM_APP_ID!);
-  url.searchParams.set("client_secret", process.env.INSTAGRAM_APP_SECRET!);
-  url.searchParams.set("redirect_uri", process.env.INSTAGRAM_REDIRECT_URI!);
-  url.searchParams.set("code", code);
+): Promise<InstagramShortTokenResponse> {
+  const body = new URLSearchParams({
+    client_id: process.env.INSTAGRAM_APP_ID!,
+    client_secret: process.env.INSTAGRAM_APP_SECRET!,
+    grant_type: "authorization_code",
+    redirect_uri: process.env.INSTAGRAM_REDIRECT_URI!,
+    code,
+  });
 
-  const res = await fetch(url.toString());
+  const res = await fetch(TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+  });
+
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(
-      `Instagram(FB) token exchange failed: ${res.status} ${text}`
-    );
+    throw new Error(`Instagram token exchange failed: ${res.status} ${text}`);
   }
   return res.json();
 }
 
 export async function exchangeForLongLivedToken(
   shortLivedToken: string
-): Promise<FacebookTokenResponse> {
+): Promise<InstagramLongTokenResponse> {
   const url = new URL(LONG_LIVED_URL);
-  url.searchParams.set("grant_type", "fb_exchange_token");
-  url.searchParams.set("client_id", process.env.INSTAGRAM_APP_ID!);
+  url.searchParams.set("grant_type", "ig_exchange_token");
   url.searchParams.set("client_secret", process.env.INSTAGRAM_APP_SECRET!);
-  url.searchParams.set("fb_exchange_token", shortLivedToken);
+  url.searchParams.set("access_token", shortLivedToken);
 
   const res = await fetch(url.toString());
   if (!res.ok) {
     const text = await res.text();
     throw new Error(
-      `Instagram(FB) long-lived exchange failed: ${res.status} ${text}`
+      `Instagram long-lived exchange failed: ${res.status} ${text}`
     );
   }
   return res.json();
 }
 
-/**
- * 사용자의 첫 번째 IG Business 계정을 찾음.
- * FB Page → IG Business account 매핑 필요.
- */
-export async function findInstagramBusinessAccount(
-  userAccessToken: string
-): Promise<InstagramAccountInfo> {
-  const url = new URL(PAGES_URL);
-  url.searchParams.set(
-    "fields",
-    "id,name,access_token,instagram_business_account"
-  );
-  url.searchParams.set("access_token", userAccessToken);
+export async function fetchUserInfo(
+  accessToken: string
+): Promise<InstagramUserInfo> {
+  const url = new URL(USERINFO_URL);
+  url.searchParams.set("fields", "id,user_id,username,account_type");
+  url.searchParams.set("access_token", accessToken);
 
   const res = await fetch(url.toString());
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Instagram pages lookup failed: ${res.status} ${text}`);
+    throw new Error(`Instagram userinfo failed: ${res.status} ${text}`);
   }
-  const data = (await res.json()) as FacebookPagesResponse;
-
-  const pageWithIG = data.data.find((p) => p.instagram_business_account?.id);
-  if (!pageWithIG || !pageWithIG.instagram_business_account) {
-    throw new Error(
-      "Instagram Business 계정이 연결된 Facebook Page를 찾을 수 없습니다. " +
-        "Instagram을 Business/Creator 계정으로 전환하고 Facebook Page에 연결해주세요."
-    );
-  }
-
-  const igId = pageWithIG.instagram_business_account.id;
-
-  // 추가로 username 조회 (선택)
-  let username: string | null = null;
-  try {
-    const igUrl = new URL(IG_USER_URL(igId));
-    igUrl.searchParams.set("fields", "username");
-    igUrl.searchParams.set("access_token", pageWithIG.access_token);
-    const igRes = await fetch(igUrl.toString());
-    if (igRes.ok) {
-      const igData = (await igRes.json()) as { username?: string };
-      username = igData.username ?? null;
-    }
-  } catch {
-    // username 조회 실패는 치명적이지 않음
-  }
-
-  return {
-    igUserId: igId,
-    pageId: pageWithIG.id,
-    username,
-    pageAccessToken: pageWithIG.access_token,
-  };
+  return res.json();
 }

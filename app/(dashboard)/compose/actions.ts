@@ -190,7 +190,7 @@ export async function publishToInstagram({
     };
   }
 
-  const pageToken = decryptToken({
+  const accessToken = decryptToken({
     ciphertext: connection.access_token_ciphertext,
     iv: connection.access_token_iv,
     tag: connection.access_token_tag,
@@ -211,7 +211,7 @@ export async function publishToInstagram({
     let mediaId: string;
     if (urls.length === 1) {
       const r = await publishSingle({
-        pageAccessToken: pageToken,
+        accessToken,
         igUserId: connection.instagram_business_id,
         imageUrl: urls[0],
         caption: cap,
@@ -219,7 +219,7 @@ export async function publishToInstagram({
       mediaId = r.mediaId;
     } else {
       const r = await publishCarousel({
-        pageAccessToken: pageToken,
+        accessToken,
         igUserId: connection.instagram_business_id,
         imageUrls: urls,
         caption: cap,

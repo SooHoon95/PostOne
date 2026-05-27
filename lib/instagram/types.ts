@@ -1,25 +1,21 @@
-export type FacebookTokenResponse = {
+// New Instagram API (with Business Login, 2024+)
+export type InstagramShortTokenResponse = {
+  access_token: string;
+  user_id: number | string;
+  permissions: string; // comma-separated
+};
+
+export type InstagramLongTokenResponse = {
   access_token: string;
   token_type: "bearer";
-  expires_in: number; // 60 days for long-lived
+  expires_in: number; // seconds (~60 days)
 };
 
-export type FacebookPage = {
-  id: string;
-  name: string;
-  access_token: string; // page access token
-  instagram_business_account?: { id: string };
-};
-
-export type FacebookPagesResponse = {
-  data: FacebookPage[];
-};
-
-export type InstagramAccountInfo = {
-  igUserId: string;        // IG Business Account ID
-  pageId: string;          // Connected FB Page ID
-  username: string | null;
-  pageAccessToken: string; // Page access token (used for publish)
+export type InstagramUserInfo = {
+  id: string;          // app-scoped ID
+  user_id: string;     // IG account id (use for publishing)
+  username: string;
+  account_type?: string; // BUSINESS or CREATOR
 };
 
 export type InstagramContainerResponse = {

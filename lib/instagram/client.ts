@@ -1,22 +1,24 @@
+// Instagram API with Business Login (2024+ NEW API)
+// Publishing flow: container create → media_publish
+// Reference: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/content-publishing
 import type {
   InstagramContainerResponse,
   InstagramPublishResponse,
 } from "./types";
 
-const FB_VERSION = "v18.0";
-const API_BASE = `https://graph.facebook.com/${FB_VERSION}`;
+const API_BASE = "https://graph.instagram.com/v21.0";
 
 type PublishSingleParams = {
-  pageAccessToken: string;
-  igUserId: string;
+  accessToken: string;
+  igUserId: string; // user_id from /me
   imageUrl: string; // publicly accessible URL
   caption: string;
 };
 
 type PublishCarouselParams = {
-  pageAccessToken: string;
+  accessToken: string;
   igUserId: string;
-  imageUrls: string[]; // up to 10
+  imageUrls: string[]; // 2-10
   caption: string;
 };
 
@@ -34,12 +36,12 @@ function validateCaption(caption: string) {
 
 async function createContainer(
   igUserId: string,
-  pageAccessToken: string,
+  accessToken: string,
   params: Record<string, string>
 ): Promise<string> {
   const url = new URL(`${API_BASE}/${igUserId}/media`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  url.searchParams.set("access_token", pageAccessToken);
+  url.searchParams.set("access_token", accessToken);
 
   const res = await fetch(url.toString(), { method: "POST" });
   if (!res.ok) {
@@ -52,12 +54,12 @@ async function createContainer(
 
 async function publishContainer(
   igUserId: string,
-  pageAccessToken: string,
+  accessToken: string,
   creationId: string
 ): Promise<string> {
   const url = new URL(`${API_BASE}/${igUserId}/media_publish`);
   url.searchParams.set("creation_id", creationId);
-  url.searchParams.set("access_token", pageAccessToken);
+  url.searchParams.set("access_token", accessToken);
 
   const res = await fetch(url.toString(), { method: "POST" });
   if (!res.ok) {
@@ -69,26 +71,22 @@ async function publishContainer(
 }
 
 export async function publishSingle({
-  pageAccessToken,
+  accessToken,
   igUserId,
   imageUrl,
   caption,
 }: PublishSingleParams): Promise<PublishResult> {
   validateCaption(caption);
-  const containerId = await createContainer(igUserId, pageAccessToken, {
+  const containerId = await createContainer(igUserId, accessToken, {
     image_url: imageUrl,
     caption,
   });
-  const mediaId = await publishContainer(
-    igUserId,
-    pageAccessToken,
-    containerId
-  );
+  const mediaId = await publishContainer(igUserId, accessToken, containerId);
   return { mediaId };
 }
 
 export async function publishCarousel({
-  pageAccessToken,
+  accessToken,
   igUserId,
   imageUrls,
   caption,
@@ -101,7 +99,7 @@ export async function publishCarousel({
   // 자식 컨테이너 N개 생성
   const childIds: string[] = [];
   for (const imageUrl of imageUrls) {
-    const id = await createContainer(igUserId, pageAccessToken, {
+    const id = await createContainer(igUserId, accessToken, {
       image_url: imageUrl,
       is_carousel_item: "true",
     });
@@ -109,16 +107,12 @@ export async function publishCarousel({
   }
 
   // 캐러셀 부모 컨테이너 생성
-  const parentId = await createContainer(igUserId, pageAccessToken, {
+  const parentId = await createContainer(igUserId, accessToken, {
     media_type: "CAROUSEL",
     children: childIds.join(","),
     caption,
   });
 
-  const mediaId = await publishContainer(
-    igUserId,
-    pageAccessToken,
-    parentId
-  );
+  const mediaId = await publishContainer(igUserId, accessToken, parentId);
   return { mediaId };
 }
