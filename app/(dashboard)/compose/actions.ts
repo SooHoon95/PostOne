@@ -6,7 +6,7 @@ import { decryptToken } from "@/lib/crypto/encrypt";
 import { publishPost as linkedInPublish } from "@/lib/linkedin/client";
 import { publishPost as threadsPublish } from "@/lib/threads/client";
 import { publishSingle, publishCarousel } from "@/lib/instagram/client";
-import { splitToSlides } from "@/lib/cards/text-split";
+import type { Slide } from "@/lib/cards/text-split";
 import { renderSlidesToPngs } from "@/lib/cards/generator";
 import { uploadCardPngs } from "@/lib/cards/upload";
 import type { TemplateName } from "@/lib/cards/templates";
@@ -155,23 +155,46 @@ export async function publishToThreads({ content }: Input): Promise<Result> {
 
 // ─── Instagram ──────────────────────────────────────────────────────────────
 
-type InstagramInput = Input & {
-  template?: TemplateName;
-  title?: string;
-  caption?: string; // 캡션 (없으면 content 사용)
+export type InstagramCard = {
+  title: string;       // 카드 제목 (빈 문자열 OK)
+  description: string; // 카드 설명 (빈 문자열 OK)
 };
 
+type InstagramInput = {
+  cards: InstagramCard[];        // 빈 배열이면 1장 빈 카드
+  template?: TemplateName;
+  caption?: string;              // 게시물 캡션 (이미지 아래 텍스트)
+};
+
+function cardsToSlides(cards: InstagramCard[]): Slide[] {
+  // 카드 없으면 빈 1장
+  if (cards.length === 0) {
+    return [{ index: 0, total: 1, body: "" }];
+  }
+  return cards.map((card, i) => ({
+    index: i,
+    total: cards.length,
+    title: card.title.trim() || undefined,
+    body: card.description.trim(),
+  }));
+}
+
+function buildCaption(cards: InstagramCard[], override?: string): string {
+  if (override !== undefined) return override.slice(0, INSTAGRAM_MAX);
+  if (cards.length === 0) return "";
+  // 카드들의 제목/설명을 합쳐서 자동 캡션 생성
+  const auto = cards
+    .map((c) => [c.title, c.description].filter(Boolean).join(" — "))
+    .filter(Boolean)
+    .join("\n\n");
+  return auto.slice(0, INSTAGRAM_MAX);
+}
+
 export async function publishToInstagram({
-  content,
+  cards,
   template = "minimal-white",
-  title,
   caption,
 }: InstagramInput): Promise<MediaResult> {
-  const trimmed = content.trim();
-  if (!trimmed) return { error: "내용을 입력해주세요." };
-
-  const cap = (caption ?? trimmed).slice(0, INSTAGRAM_MAX);
-
   const user = await requireUser();
   const supabase = createClient();
 
@@ -196,18 +219,16 @@ export async function publishToInstagram({
     tag: connection.access_token_tag,
   });
 
+  const slides = cardsToSlides(cards);
+  const cap = buildCaption(cards, caption);
+  const storedContent = cards
+    .map((c) => `[${c.title}] ${c.description}`)
+    .join("\n");
+
   try {
-    // 1) 텍스트 → 슬라이드 분할
-    const slides = splitToSlides(trimmed, title);
-    if (slides.length === 0) return { error: "분할 가능한 내용이 없습니다." };
-
-    // 2) 슬라이드 → PNG
     const pngs = await renderSlidesToPngs(slides, template);
-
-    // 3) PNG → Supabase Storage 업로드 → 공개 URL
     const urls = await uploadCardPngs(user.id, pngs);
 
-    // 4) Instagram 발행 (1장이면 single, 2~10장이면 carousel)
     let mediaId: string;
     if (urls.length === 1) {
       const r = await publishSingle({
@@ -229,7 +250,7 @@ export async function publishToInstagram({
 
     await supabase.from("posts").insert({
       user_id: user.id,
-      content: trimmed,
+      content: storedContent || "(빈 카드)",
       channel: "instagram",
       external_id: mediaId,
       status: "success",
@@ -243,7 +264,7 @@ export async function publishToInstagram({
     const msg = e instanceof Error ? e.message : "Unknown error";
     await supabase.from("posts").insert({
       user_id: user.id,
-      content: trimmed,
+      content: storedContent || "(빈 카드)",
       channel: "instagram",
       status: "failed",
       error_message: msg,
@@ -257,11 +278,11 @@ export async function publishToInstagram({
 export type Channel = "linkedin" | "threads" | "instagram";
 
 export type MultiPublishInput = {
-  content: string;
   channels: Channel[];
+  body: string;                       // LinkedIn + Threads
+  instagramCards: InstagramCard[];    // 빈 배열이면 빈 1장
   instagramTemplate?: TemplateName;
-  instagramTitle?: string;
-  instagramCaption?: string;
+  instagramCaption?: string;          // 게시물 캡션 (선택)
 };
 
 export type ChannelResult = {
@@ -275,17 +296,20 @@ export type ChannelResult = {
 export async function publishMulti(
   input: MultiPublishInput
 ): Promise<{ results: ChannelResult[] }> {
-  const { content, channels } = input;
+  const { channels, body, instagramCards } = input;
   if (channels.length === 0) {
-    return { results: [{ channel: "linkedin", success: false, error: "채널을 1개 이상 선택하세요." }] };
+    return {
+      results: [
+        { channel: "linkedin", success: false, error: "채널을 1개 이상 선택하세요." },
+      ],
+    };
   }
 
   const results: ChannelResult[] = [];
 
-  // 순차 실행 (API rate-limit 보호). 병렬화는 v1.1+ 최적화.
   for (const channel of channels) {
     if (channel === "linkedin") {
-      const r = await publishToLinkedIn({ content });
+      const r = await publishToLinkedIn({ content: body });
       results.push({
         channel,
         success: !r.error,
@@ -293,7 +317,7 @@ export async function publishMulti(
         error: r.error,
       });
     } else if (channel === "threads") {
-      const r = await publishToThreads({ content });
+      const r = await publishToThreads({ content: body });
       results.push({
         channel,
         success: !r.error,
@@ -302,9 +326,8 @@ export async function publishMulti(
       });
     } else if (channel === "instagram") {
       const r = await publishToInstagram({
-        content,
+        cards: instagramCards,
         template: input.instagramTemplate,
-        title: input.instagramTitle,
         caption: input.instagramCaption,
       });
       results.push({

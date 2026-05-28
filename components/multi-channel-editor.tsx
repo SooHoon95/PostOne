@@ -6,19 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { CharacterCounter } from "@/components/character-counter";
 import type {
   Channel,
   ChannelResult,
+  InstagramCard,
   MultiPublishInput,
 } from "@/app/(dashboard)/compose/actions";
 
 type TemplateName = "minimal-white" | "gradient" | "photo-overlay";
 
-const LIMITS: Record<Channel, number> = {
+const LIMITS = {
   linkedin: 3000,
   threads: 500,
-  instagram: 2200,
 };
 
 const CHANNEL_LABEL: Record<Channel, string> = {
@@ -33,6 +32,8 @@ const TEMPLATE_LABEL: Record<TemplateName, string> = {
   "photo-overlay": "다크 오버레이",
 };
 
+const ORDINAL = ["첫번째", "두번째", "세번째", "네번째", "다섯번째", "여섯번째", "일곱번째", "여덟번째", "아홉번째", "열번째"];
+
 export function MultiChannelEditor({
   publish,
   connectedChannels,
@@ -40,15 +41,19 @@ export function MultiChannelEditor({
   publish: (input: MultiPublishInput) => Promise<{ results: ChannelResult[] }>;
   connectedChannels: Record<Channel, boolean>;
 }) {
-  const [content, setContent] = useState("");
   const [selected, setSelected] = useState<Record<Channel, boolean>>({
     linkedin: connectedChannels.linkedin,
     threads: connectedChannels.threads,
     instagram: connectedChannels.instagram,
   });
-  const [igTitle, setIgTitle] = useState("");
-  const [igTemplate, setIgTemplate] =
-    useState<TemplateName>("minimal-white");
+
+  const [body, setBody] = useState("");
+
+  // Instagram 카드 상태
+  const [cards, setCards] = useState<InstagramCard[]>([]);
+  const [igTemplate, setIgTemplate] = useState<TemplateName>("minimal-white");
+  const [igCaption, setIgCaption] = useState("");
+
   const [submitting, setSubmitting] = useState(false);
   const [results, setResults] = useState<ChannelResult[] | null>(null);
 
@@ -60,29 +65,46 @@ export function MultiChannelEditor({
     [selected, connectedChannels]
   );
 
-  const overLimit = selectedChannels.some(
-    (c) => content.length > LIMITS[c]
-  );
+  const bodyChannelsSelected =
+    selectedChannels.includes("linkedin") || selectedChannels.includes("threads");
+
+  function addCard() {
+    if (cards.length >= 10) return;
+    setCards([...cards, { title: "", description: "" }]);
+  }
+
+  function removeCard(idx: number) {
+    setCards(cards.filter((_, i) => i !== idx));
+  }
+
+  function updateCard(idx: number, field: keyof InstagramCard, value: string) {
+    setCards(cards.map((c, i) => (i === idx ? { ...c, [field]: value } : c)));
+  }
 
   async function onSubmit() {
     setSubmitting(true);
     setResults(null);
     try {
       const r = await publish({
-        content,
         channels: selectedChannels,
+        body,
+        instagramCards: cards,
         instagramTemplate: igTemplate,
-        instagramTitle: igTitle || undefined,
+        instagramCaption: igCaption || undefined,
       });
       setResults(r.results);
       if (r.results.every((x) => x.success)) {
-        setContent("");
-        setIgTitle("");
+        setBody("");
+        setCards([]);
+        setIgCaption("");
       }
     } finally {
       setSubmitting(false);
     }
   }
+
+  const canSubmit =
+    !submitting && selectedChannels.length > 0 && (bodyChannelsSelected ? body.trim().length > 0 : true);
 
   return (
     <div className="space-y-6">
@@ -117,42 +139,46 @@ export function MultiChannelEditor({
         </div>
       </Card>
 
-      {/* 본문 */}
-      <Textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        rows={12}
-        placeholder="여러 채널에 한 번에 발행할 글을 작성하세요..."
-      />
-
-      <div className="flex items-center justify-between text-xs">
-        <div className="flex flex-wrap gap-4 text-slate-600">
-          {selectedChannels.map((c) => (
-            <span
-              key={c}
-              className={content.length > LIMITS[c] ? "text-red-600" : ""}
-            >
-              {CHANNEL_LABEL[c]}: {content.length} / {LIMITS[c]}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Instagram 옵션 */}
-      {selected.instagram && connectedChannels.instagram && (
+      {/* 본문 (LinkedIn + Threads) */}
+      {bodyChannelsSelected && (
         <Card className="p-4 space-y-3">
-          <p className="text-sm font-medium">Instagram 카드 옵션</p>
-          <div className="space-y-2">
-            <Label htmlFor="ig-title">제목 (선택, 첫 슬라이드 hero)</Label>
-            <Input
-              id="ig-title"
-              value={igTitle}
-              onChange={(e) => setIgTitle(e.target.value)}
-              placeholder="예: 직장인이 알면 좋은 5가지"
-            />
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium">본문</p>
+            <span className="text-xs text-slate-500">LinkedIn, Threads 발행용</span>
           </div>
+          <Textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={10}
+            placeholder="본문을 작성하세요..."
+          />
+          <div className="flex gap-4 text-xs">
+            {selectedChannels.includes("linkedin") && (
+              <span
+                className={body.length > LIMITS.linkedin ? "text-red-600" : "text-slate-600"}
+              >
+                LinkedIn: {body.length} / {LIMITS.linkedin}
+              </span>
+            )}
+            {selectedChannels.includes("threads") && (
+              <span
+                className={body.length > LIMITS.threads ? "text-red-600" : "text-slate-600"}
+              >
+                Threads: {body.length} / {LIMITS.threads}
+              </span>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {/* Instagram 카드 */}
+      {selected.instagram && connectedChannels.instagram && (
+        <Card className="p-4 space-y-4">
+          <p className="text-sm font-medium">Instagram 카드</p>
+
+          {/* 템플릿 선택 */}
           <div className="space-y-2">
-            <Label htmlFor="ig-template">템플릿</Label>
+            <Label htmlFor="ig-template">템플릿 (톤앤매너)</Label>
             <select
               id="ig-template"
               value={igTemplate}
@@ -166,6 +192,72 @@ export function MultiChannelEditor({
               ))}
             </select>
           </div>
+
+          {/* 카드 영역 */}
+          {cards.length === 0 ? (
+            <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-4">
+              <p className="text-sm font-medium text-slate-700">기본 카드 생성</p>
+              <p className="mt-1 text-xs text-slate-500">
+                카드를 추가하지 않으면 빈 카드 1장이 자동 발행됩니다.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {cards.map((card, i) => (
+                <div
+                  key={i}
+                  className="rounded-md border border-slate-200 bg-white p-3 space-y-2"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-slate-700">
+                      {ORDINAL[i] ?? `${i + 1}번째`} 카드
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => removeCard(i)}
+                      className="text-xs text-red-600 hover:underline"
+                    >
+                      삭제
+                    </button>
+                  </div>
+                  <Input
+                    value={card.title}
+                    onChange={(e) => updateCard(i, "title", e.target.value)}
+                    placeholder="제목"
+                  />
+                  <Textarea
+                    value={card.description}
+                    onChange={(e) => updateCard(i, "description", e.target.value)}
+                    rows={3}
+                    placeholder="설명"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addCard}
+            disabled={cards.length >= 10}
+            className="w-full"
+          >
+            + 카드 추가 ({cards.length}/10)
+          </Button>
+
+          {/* 캡션 */}
+          <div className="space-y-2">
+            <Label htmlFor="ig-caption">캡션 (선택, 게시물 아래 텍스트)</Label>
+            <Textarea
+              id="ig-caption"
+              value={igCaption}
+              onChange={(e) => setIgCaption(e.target.value)}
+              rows={3}
+              placeholder="비워두면 카드 내용으로 자동 생성됩니다."
+            />
+            <p className="text-xs text-slate-500">{igCaption.length} / 2200</p>
+          </div>
         </Card>
       )}
 
@@ -173,22 +265,11 @@ export function MultiChannelEditor({
         <p className="text-xs text-slate-500">
           선택된 채널 {selectedChannels.length}개에 발행됩니다
         </p>
-        <Button
-          onClick={onSubmit}
-          disabled={
-            submitting ||
-            !content.trim() ||
-            selectedChannels.length === 0 ||
-            overLimit
-          }
-        >
-          {submitting
-            ? "발행 중..."
-            : `${selectedChannels.length}개 채널에 발행`}
+        <Button onClick={onSubmit} disabled={!canSubmit}>
+          {submitting ? "발행 중..." : `${selectedChannels.length}개 채널에 발행`}
         </Button>
       </div>
 
-      {/* 결과 */}
       {results && (
         <Card className="p-4 space-y-2">
           <p className="text-sm font-medium">발행 결과</p>
@@ -208,9 +289,7 @@ export function MultiChannelEditor({
               {r.externalId && (
                 <p className="mt-1 text-xs opacity-75">ID: {r.externalId}</p>
               )}
-              {r.error && (
-                <p className="mt-1 text-xs">{r.error}</p>
-              )}
+              {r.error && <p className="mt-1 text-xs">{r.error}</p>}
             </div>
           ))}
         </Card>
