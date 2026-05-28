@@ -42,26 +42,33 @@ describe("Instagram publish client (new API, 2024+)", () => {
   });
 
   it("publishCarousel: 3 children + wait + parent + wait + publish", async () => {
-    const fetchMock = vi.fn();
-    // 3 children create
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ id: "c1" }),
+    let createCount = 0;
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      const u = String(url);
+      if (u.includes("/media_publish")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ id: "media_xx" }),
+        });
+      }
+      if (u.includes("fields=status_code")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ status_code: "FINISHED" }),
+        });
+      }
+      if (u.includes("/media")) {
+        // create container
+        createCount += 1;
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            id: createCount <= 3 ? `c${createCount}` : "parent",
+          }),
+        });
+      }
+      return Promise.reject(new Error(`unexpected url: ${u}`));
     });
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ id: "c2" }),
-    });
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ id: "c3" }),
-    });
-    // 3 children status checks (FINISHED)
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ status_code: "FINISHED" }),
-    });
-
     vi.stubGlobal("fetch", fetchMock);
 
     const { publishCarousel } = await import("@/lib/instagram/client");
@@ -72,7 +79,7 @@ describe("Instagram publish client (new API, 2024+)", () => {
       caption: "Carousel",
     });
 
-    expect(result.mediaId).toBeDefined();
+    expect(result.mediaId).toBe("media_xx");
   });
 
   it("publishSingle: throws when status becomes ERROR", async () => {
