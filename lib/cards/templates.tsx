@@ -32,7 +32,7 @@ function PageNumber({ slide }: { slide: Slide }) {
         color: "rgba(0,0,0,0.45)",
       }}
     >
-      {slide.index + 1} / {slide.total}
+      {`${slide.index + 1} / ${slide.total}`}
     </div>
   );
 }
