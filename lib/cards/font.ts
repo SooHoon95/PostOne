@@ -4,10 +4,11 @@
  *
  * Uses Pretendard (open source, OFL license) via jsdelivr CDN.
  */
+// Satori requires TTF/OTF (NOT WOFF/WOFF2)
 const FONT_URLS = {
   regular:
-    "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/static/woff2/Pretendard-Regular.woff2",
-  bold: "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/static/woff2/Pretendard-Bold.woff2",
+    "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/public/static/Pretendard-Regular.otf",
+  bold: "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/public/static/Pretendard-Bold.otf",
 };
 
 let cached: { regular: ArrayBuffer; bold: ArrayBuffer } | null = null;
