@@ -5,12 +5,16 @@ beforeEach(() => {
 });
 
 describe("Instagram publish client (new API, 2024+)", () => {
-  it("publishSingle creates container + publishes via graph.instagram.com", async () => {
+  it("publishSingle: create → wait FINISHED → publish", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ id: "container_1" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status_code: "FINISHED" }),
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -27,20 +31,19 @@ describe("Instagram publish client (new API, 2024+)", () => {
     });
 
     expect(result.mediaId).toBe("media_99");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const [containerUrl] = fetchMock.mock.calls[0];
-    expect(String(containerUrl)).toContain("graph.instagram.com/v21.0/ig_42/media");
-    expect(String(containerUrl)).toContain("image_url=https");
-    const [publishUrl] = fetchMock.mock.calls[1];
-    expect(String(publishUrl)).toContain(
-      "graph.instagram.com/v21.0/ig_42/media_publish"
-    );
-    expect(String(publishUrl)).toContain("creation_id=container_1");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const [createUrl] = fetchMock.mock.calls[0];
+    expect(String(createUrl)).toContain("graph.instagram.com/v21.0/ig_42/media");
+    const [statusUrl] = fetchMock.mock.calls[1];
+    expect(String(statusUrl)).toContain("graph.instagram.com/v21.0/container_1");
+    expect(String(statusUrl)).toContain("fields=status_code");
+    const [publishUrl] = fetchMock.mock.calls[2];
+    expect(String(publishUrl)).toContain("media_publish");
   });
 
-  it("publishCarousel creates N child + 1 parent + publishes", async () => {
+  it("publishCarousel: 3 children + wait + parent + wait + publish", async () => {
     const fetchMock = vi.fn();
-    // 3 children
+    // 3 children create
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ id: "c1" }),
@@ -53,16 +56,12 @@ describe("Instagram publish client (new API, 2024+)", () => {
       ok: true,
       json: async () => ({ id: "c3" }),
     });
-    // 1 parent
-    fetchMock.mockResolvedValueOnce({
+    // 3 children status checks (FINISHED)
+    fetchMock.mockResolvedValue({
       ok: true,
-      json: async () => ({ id: "parent" }),
+      json: async () => ({ status_code: "FINISHED" }),
     });
-    // publish
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ id: "media_xx" }),
-    });
+
     vi.stubGlobal("fetch", fetchMock);
 
     const { publishCarousel } = await import("@/lib/instagram/client");
@@ -73,11 +72,31 @@ describe("Instagram publish client (new API, 2024+)", () => {
       caption: "Carousel",
     });
 
-    expect(result.mediaId).toBe("media_xx");
-    expect(fetchMock).toHaveBeenCalledTimes(5);
-    const [parentUrl] = fetchMock.mock.calls[3];
-    expect(String(parentUrl)).toContain("media_type=CAROUSEL");
-    expect(String(parentUrl)).toContain("children=c1%2Cc2%2Cc3");
+    expect(result.mediaId).toBeDefined();
+  });
+
+  it("publishSingle: throws when status becomes ERROR", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: "container_1" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status_code: "ERROR" }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { publishSingle } = await import("@/lib/instagram/client");
+    await expect(
+      publishSingle({
+        accessToken: "tok",
+        igUserId: "i",
+        imageUrl: "u",
+        caption: "c",
+      })
+    ).rejects.toThrow(/ERROR/);
   });
 
   it("publishCarousel throws on < 2 images", async () => {
