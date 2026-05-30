@@ -9,7 +9,7 @@ export default async function DashboardHome() {
       <h1 className="text-2xl font-semibold">안녕하세요, {user.email}</h1>
       <Card className="p-6">
         <h2 className="text-lg font-semibold">시작하기</h2>
-        <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-slate-700">
+        <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-foreground">
           <li>
             <Link href="/settings/connections" className="underline">
               채널 연동

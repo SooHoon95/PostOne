@@ -1,23 +1,96 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Surfaces */
+    --background: 0 0% 100%;
+    --foreground: 240 6% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 6% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 6% 10%;
+
+    /* Brand — Indigo / Violet */
+    --primary: 243 75% 59%;
+    --primary-foreground: 0 0% 100%;
+    --brand: 243 75% 59%;
+    --brand-foreground: 0 0% 100%;
+    --brand-accent: 262 83% 58%;
+
+    /* Neutrals */
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 10%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 6% 10%;
+
+    /* Semantic */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
+
+    /* Lines & focus */
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 243 75% 59%;
+
+    /* Channel brand colors */
+    --channel-linkedin: 201 100% 35%;
+    --channel-threads: 0 0% 0%;
+    --channel-instagram: 326 78% 53%;
+
+    --radius: 0.625rem;
+  }
+
+  .dark {
+    --background: 240 10% 4%;
+    --foreground: 0 0% 98%;
+    --card: 240 9% 7%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 9% 7%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 243 72% 62%;
+    --primary-foreground: 0 0% 100%;
+    --brand: 243 72% 62%;
+    --brand-foreground: 0 0% 100%;
+    --brand-accent: 262 83% 70%;
+
+    --secondary: 240 6% 14%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 6% 14%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 240 6% 16%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --success: 142 65% 50%;
+    --warning: 38 92% 55%;
+
+    --border: 240 6% 18%;
+    --input: 240 6% 20%;
+    --ring: 243 72% 62%;
+
+    --channel-linkedin: 201 90% 55%;
+    --channel-threads: 0 0% 92%;
+    --channel-instagram: 326 78% 63%;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
 
 @layer utilities {

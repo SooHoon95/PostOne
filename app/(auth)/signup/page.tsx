@@ -26,7 +26,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="space-y-6 rounded-lg border bg-white p-6 shadow-sm">
+    <div className="space-y-6 rounded-lg border bg-card p-6 shadow-sm">
       <h1 className="text-xl font-semibold">가입하기</h1>
       <form action={handleSubmit} className="space-y-4">
         <div className="space-y-2">
@@ -41,7 +41,7 @@ export default function SignupPage() {
         {message && <p className="text-sm text-green-700">{message}</p>}
         <Button type="submit" className="w-full">가입</Button>
       </form>
-      <p className="text-sm text-slate-600">
+      <p className="text-sm text-muted-foreground">
         이미 계정이 있으신가요? <Link href="/login" className="underline">로그인</Link>
       </p>
     </div>

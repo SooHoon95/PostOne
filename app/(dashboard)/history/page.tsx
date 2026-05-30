@@ -10,13 +10,13 @@ export default async function HistoryPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">발행 이력</h1>
       {posts.length === 0 ? (
-        <p className="text-sm text-slate-600">아직 발행한 글이 없습니다.</p>
+        <p className="text-sm text-muted-foreground">아직 발행한 글이 없습니다.</p>
       ) : (
         <ul className="space-y-3">
           {posts.map((p) => (
             <li key={p.id}>
               <Card className="p-4">
-                <div className="flex items-center justify-between text-xs text-slate-500">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>{p.channel.toUpperCase()}</span>
                   <span>{new Date(p.created_at).toLocaleString("ko-KR")}</span>
                 </div>

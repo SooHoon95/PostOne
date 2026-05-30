@@ -131,7 +131,7 @@ export function MultiChannelEditor({
                 />
                 <span>{CHANNEL_LABEL[c]}</span>
                 {!isConnected && (
-                  <span className="text-xs text-slate-500">(미연결)</span>
+                  <span className="text-xs text-muted-foreground">(미연결)</span>
                 )}
               </label>
             );
@@ -144,7 +144,7 @@ export function MultiChannelEditor({
         <Card className="p-4 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium">본문</p>
-            <span className="text-xs text-slate-500">LinkedIn, Threads 발행용</span>
+            <span className="text-xs text-muted-foreground">LinkedIn, Threads 발행용</span>
           </div>
           <Textarea
             value={body}
@@ -155,14 +155,14 @@ export function MultiChannelEditor({
           <div className="flex gap-4 text-xs">
             {selectedChannels.includes("linkedin") && (
               <span
-                className={body.length > LIMITS.linkedin ? "text-red-600" : "text-slate-600"}
+                className={body.length > LIMITS.linkedin ? "text-red-600" : "text-muted-foreground"}
               >
                 LinkedIn: {body.length} / {LIMITS.linkedin}
               </span>
             )}
             {selectedChannels.includes("threads") && (
               <span
-                className={body.length > LIMITS.threads ? "text-red-600" : "text-slate-600"}
+                className={body.length > LIMITS.threads ? "text-red-600" : "text-muted-foreground"}
               >
                 Threads: {body.length} / {LIMITS.threads}
               </span>
@@ -183,7 +183,7 @@ export function MultiChannelEditor({
               id="ig-template"
               value={igTemplate}
               onChange={(e) => setIgTemplate(e.target.value as TemplateName)}
-              className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+              className="flex h-10 w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
             >
               {(Object.keys(TEMPLATE_LABEL) as TemplateName[]).map((t) => (
                 <option key={t} value={t}>
@@ -195,9 +195,9 @@ export function MultiChannelEditor({
 
           {/* 카드 영역 */}
           {cards.length === 0 ? (
-            <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-4">
-              <p className="text-sm font-medium text-slate-700">기본 카드 생성</p>
-              <p className="mt-1 text-xs text-slate-500">
+            <div className="rounded-md border border-dashed border-input bg-muted p-4">
+              <p className="text-sm font-medium text-foreground">기본 카드 생성</p>
+              <p className="mt-1 text-xs text-muted-foreground">
                 카드를 추가하지 않으면 빈 카드 1장이 자동 발행됩니다.
               </p>
             </div>
@@ -206,10 +206,10 @@ export function MultiChannelEditor({
               {cards.map((card, i) => (
                 <div
                   key={i}
-                  className="rounded-md border border-slate-200 bg-white p-3 space-y-2"
+                  className="rounded-md border border bg-card p-3 space-y-2"
                 >
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-slate-700">
+                    <p className="text-sm font-medium text-foreground">
                       {ORDINAL[i] ?? `${i + 1}번째`} 카드
                     </p>
                     <button
@@ -256,13 +256,13 @@ export function MultiChannelEditor({
               rows={3}
               placeholder="비워두면 카드 내용으로 자동 생성됩니다."
             />
-            <p className="text-xs text-slate-500">{igCaption.length} / 2200</p>
+            <p className="text-xs text-muted-foreground">{igCaption.length} / 2200</p>
           </div>
         </Card>
       )}
 
       <div className="flex items-center justify-between">
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted-foreground">
           선택된 채널 {selectedChannels.length}개에 발행됩니다
         </p>
         <Button onClick={onSubmit} disabled={!canSubmit}>

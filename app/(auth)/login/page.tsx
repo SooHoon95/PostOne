@@ -19,7 +19,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="space-y-6 rounded-lg border bg-white p-6 shadow-sm">
+    <div className="space-y-6 rounded-lg border bg-card p-6 shadow-sm">
       <h1 className="text-xl font-semibold">로그인</h1>
       <form action={handleSubmit} className="space-y-4">
         <div className="space-y-2">
@@ -33,7 +33,7 @@ export default function LoginPage() {
         {error && <p className="text-sm text-red-600">{error}</p>}
         <Button type="submit" className="w-full">로그인</Button>
       </form>
-      <p className="text-sm text-slate-600">
+      <p className="text-sm text-muted-foreground">
         계정이 없으신가요? <Link href="/signup" className="underline">가입하기</Link>
       </p>
     </div>

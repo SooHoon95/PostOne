@@ -9,7 +9,7 @@ export function CharacterCounter({
 }) {
   const over = value > max;
   return (
-    <p className={`text-xs ${over ? "text-red-600" : "text-slate-500"}`}>
+    <p className={`text-xs ${over ? "text-red-600" : "text-muted-foreground"}`}>
       {value} / {max}
     </p>
   );
