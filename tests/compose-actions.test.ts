@@ -51,7 +51,7 @@ beforeEach(() => {
 describe("publishToLinkedIn action", () => {
   it("returns error if content empty", async () => {
     const { publishToLinkedIn } = await import(
-      "@/app/(dashboard)/compose/actions"
+      "@/app/(app)/compose/actions"
     );
     const result = await publishToLinkedIn({ content: "   " });
     expect(result.error).toMatch(/내용/);
@@ -62,7 +62,7 @@ describe("publishToLinkedIn action", () => {
     selectConnectionMock.mockResolvedValue({ data: null });
 
     const { publishToLinkedIn } = await import(
-      "@/app/(dashboard)/compose/actions"
+      "@/app/(app)/compose/actions"
     );
     const result = await publishToLinkedIn({ content: "hello" });
     expect(result.error).toMatch(/LinkedIn/);
@@ -86,7 +86,7 @@ describe("publishToLinkedIn action", () => {
     publishPostMock.mockResolvedValue({ urn: "urn:li:share:42" });
 
     const { publishToLinkedIn } = await import(
-      "@/app/(dashboard)/compose/actions"
+      "@/app/(app)/compose/actions"
     );
     const result = await publishToLinkedIn({ content: "hello world" });
 

@@ -18,6 +18,14 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+vi.mock("next/headers", () => ({
+  cookies: () => ({
+    get: vi.fn(),
+    set: vi.fn(),
+    delete: vi.fn(),
+  }),
+}));
+
 describe("auth actions", () => {
   beforeEach(() => {
     signUpMock.mockReset();
