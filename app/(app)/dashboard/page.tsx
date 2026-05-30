@@ -3,6 +3,12 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
 import { Plug, PenLine, ArrowRight } from "lucide-react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "대시보드",
+  description: "PostOne 앱 홈 — 채널 연동과 글쓰기를 시작하세요.",
+};
 
 const steps = [
   {

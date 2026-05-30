@@ -7,7 +7,7 @@ export function DashboardNav({ email }: { email: string }) {
   return (
     <nav className="flex items-center justify-between border-b bg-card px-6 py-3">
       <div className="flex items-center gap-6">
-        <Link href="/" className="text-lg font-bold tracking-tight">
+        <Link href="/dashboard" className="text-lg font-bold tracking-tight">
           Post<span className="text-primary">One</span>
         </Link>
         <Link href="/compose" className="text-sm text-muted-foreground hover:text-foreground">글쓰기</Link>

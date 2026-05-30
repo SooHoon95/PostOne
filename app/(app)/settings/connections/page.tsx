@@ -7,6 +7,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PageHeader } from "@/components/page-header";
 import { ChannelBadge, type Channel } from "@/components/channel-badge";
 import { CheckCircle2, AlertCircle } from "lucide-react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "채널 연동",
+  description: "LinkedIn · Threads · Instagram 계정을 연결하세요.",
+};
 
 type ConnectionRow = {
   expires_at: string;

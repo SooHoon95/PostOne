@@ -9,6 +9,12 @@ import { ChannelBadge, type Channel } from "@/components/channel-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { FileText, PenLine } from "lucide-react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "발행 이력",
+  description: "최근 발행한 글을 채널별로 확인하세요.",
+};
 
 const channelLabels: Record<Channel, string> = {
   linkedin: "LinkedIn",

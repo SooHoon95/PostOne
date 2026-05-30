@@ -11,7 +11,7 @@ import type {
   ChannelResult,
   InstagramCard,
   MultiPublishInput,
-} from "@/app/(dashboard)/compose/actions";
+} from "@/app/(app)/compose/actions";
 
 type TemplateName = "minimal-white" | "gradient" | "photo-overlay";
 

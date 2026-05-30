@@ -48,7 +48,7 @@ export async function signIn({
     cookieStore.delete(REMEMBER_COOKIE);
     return { error: "이메일 또는 비밀번호가 올바르지 않습니다." };
   }
-  redirect("/");
+  redirect("/dashboard");
 }
 
 export async function signOut() {

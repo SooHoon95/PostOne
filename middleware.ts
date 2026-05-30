@@ -2,6 +2,9 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { REMEMBER_COOKIE, withRememberPolicy } from "@/lib/supabase/cookie-options";
 
+const PROTECTED = ["/dashboard", "/compose", "/history", "/settings"];
+const AUTH_PAGES = ["/login", "/signup"];
+
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -25,7 +28,23 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { pathname } = request.nextUrl;
+  const isProtected = PROTECTED.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+  const isAuthPage = AUTH_PAGES.includes(pathname);
+
+  if (!user && isProtected) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+  if (user && isAuthPage) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
   return response;
 }
 

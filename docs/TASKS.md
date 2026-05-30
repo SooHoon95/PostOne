@@ -8,8 +8,7 @@
 
 ## To Do
 
-- [ ] 랜딩 페이지 — 히어로/가격/CTA · Indigo 테마 적용 · 새 컴포넌트(Badge/PageHeader 등) 활용
-- [ ] dead code 정리 — components/editor.tsx(미사용) + character-counter.tsx(editor에서만) 삭제 또는 토큰화
+- [ ] 랜딩 본격 디자인 — 히어로/가격/FAQ/CTA 강화 (골격은 완료, app/(marketing)/page.tsx)
 - [ ] 예약 발행(스케줄링) — 발행 큐 + 시간 지정
 - [ ] 결제 연동 — Toss Payments + 4단계 요금제
 - [ ] 사용량 미터링 — 발행 수/AI 변환 카운트
@@ -19,6 +18,7 @@
 
 ## Done (최근)
 
+- [x] 아키텍처 3그룹 재편 — (marketing)/(app)/(auth), 앱홈 /dashboard, middleware 인증 가드, error/not-found/loading + 페이지 metadata, dead code(editor·character-counter) 삭제, 랜딩 골격 · 2026-05-30
 - [x] 커스텀 디자인 시스템 — Badge/Alert/Separator/Skeleton/PageHeader/EmptyState/ChannelBadge(브랜드 SVG) + 홈/이력/연동/auth 적용, Linear·Vercel 패턴 · 2026-05-30
 - [x] 로그인 상태 유지(remember me) — pm_remember 플래그 + server/middleware 정책, 보안 리뷰 반영 · 2026-05-30
 - [x] Indigo 디자인 시스템 + 다크모드 — shadcn 토큰, next-themes, Pretendard, 화면 10개 토큰화 · 2026-05-30
