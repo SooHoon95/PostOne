@@ -15,7 +15,7 @@ import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/ca
 import { Badge } from "@/components/ui/badge";
 import { ChannelBadge, type Channel } from "@/components/channel-badge";
 import { Reveal } from "@/components/marketing/reveal";
-import { CardNewsMockup } from "@/components/marketing/card-news-mockup";
+import { MultiChannelMockup } from "@/components/marketing/multi-channel-mockup";
 import { BodyToCards } from "@/components/marketing/body-to-cards";
 import { cn } from "@/lib/utils";
 
@@ -132,9 +132,9 @@ export default function LandingPage() {
             </div>
           </Reveal>
 
-          {/* card-news visual */}
+          {/* multi-channel publishing visual */}
           <Reveal delay={120} className="relative flex justify-center lg:justify-end">
-            <CardNewsMockup />
+            <MultiChannelMockup />
           </Reveal>
         </div>
       </section>

@@ -14,6 +14,7 @@
 - **레이어 의존 방향**: `app`(route/server action) → `lib`(도메인 로직) → 외부(supabase/채널 API). `components` → `lib`. 역참조 금지.
 - **채널 격리**: `lib/{linkedin,threads,instagram}`는 서로 import 금지. 공통은 `lib/utils`·`lib/crypto`·`lib/supabase`.
 - **디자인**: 하드코딩 색(`slate-*`, `bg-white` 등) 금지 — `globals.css` 토큰(`bg-card`, `text-muted-foreground`, `primary`, `channel-*`)만. 라이트/다크 양립.
+- **카피**: UI·마케팅 문구는 **명사형(체언) 종결** 기본. "~합니다/~하세요/~됩니다" ❌ → "세 채널 동시 발행", "카드뉴스 자동 생성" ⭕. (예외: CTA 버튼 라벨은 동사 허용 — "무료로 시작".)
 - **커밋**: `feat|fix|refactor|style|test|docs|build|chore|ci|WIP` + 단일 목적. Co-Authored-By 금지.
 - **push**: `main` 직접 push가 이 프로젝트 관행(Vercel 자동 배포). 단 **사용자 명시 승인 후**.
 - **설정/규칙 파일**(CLAUDE.md, .claude/**, docs/**) 수정은 계획 제시 → 동의 후 적용.
