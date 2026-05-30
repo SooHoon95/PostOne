@@ -8,7 +8,7 @@
 
 ## To Do
 
-- [ ] 랜딩 본격 디자인 — 히어로/가격/FAQ/CTA 강화 (골격은 완료, app/(marketing)/page.tsx)
+- [ ] 랜딩 후속 — 가격표(/pricing) 페이지, FAQ 섹션, 실제 제품 스크린샷 교체
 - [ ] 예약 발행(스케줄링) — 발행 큐 + 시간 지정
 - [ ] 결제 연동 — Toss Payments + 4단계 요금제
 - [ ] 사용량 미터링 — 발행 수/AI 변환 카운트
@@ -18,6 +18,7 @@
 
 ## Done (최근)
 
+- [x] 랜딩 페이지 본격 구현 — 7섹션(히어로 카드뉴스 목업/기능/3스텝/본문→카드/CTA), 스크롤 리빌(useInView), 피드팡·Buffer 참고 · 2026-05-31
 - [x] 아키텍처 3그룹 재편 — (marketing)/(app)/(auth), 앱홈 /dashboard, middleware 인증 가드, error/not-found/loading + 페이지 metadata, dead code(editor·character-counter) 삭제, 랜딩 골격 · 2026-05-30
 - [x] 커스텀 디자인 시스템 — Badge/Alert/Separator/Skeleton/PageHeader/EmptyState/ChannelBadge(브랜드 SVG) + 홈/이력/연동/auth 적용, Linear·Vercel 패턴 · 2026-05-30
 - [x] 로그인 상태 유지(remember me) — pm_remember 플래그 + server/middleware 정책, 보안 리뷰 반영 · 2026-05-30
