@@ -14,6 +14,7 @@ export default function LoginPage() {
     const result = await signIn({
       email: formData.get("email") as string,
       password: formData.get("password") as string,
+      remember: formData.get("remember") === "on",
     });
     if (result.error) setError(result.error);
   }
@@ -30,7 +31,18 @@ export default function LoginPage() {
           <Label htmlFor="password">비밀번호</Label>
           <Input id="password" name="password" type="password" required />
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        <div className="flex items-center gap-2">
+          <input
+            id="remember"
+            name="remember"
+            type="checkbox"
+            className="h-4 w-4 rounded border-input accent-primary"
+          />
+          <Label htmlFor="remember" className="text-sm font-normal text-muted-foreground">
+            로그인 상태 유지
+          </Label>
+        </div>
+        {error && <p className="text-sm text-destructive">{error}</p>}
         <Button type="submit" className="w-full">로그인</Button>
       </form>
       <p className="text-sm text-muted-foreground">

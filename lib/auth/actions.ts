@@ -1,7 +1,9 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { REMEMBER_COOKIE, REMEMBER_MAX_AGE } from "@/lib/supabase/cookie-options";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -24,15 +26,34 @@ export async function signUp({ email, password }: Credentials): Promise<ActionRe
   return {};
 }
 
-export async function signIn({ email, password }: Credentials): Promise<ActionResult> {
+export async function signIn({
+  email,
+  password,
+  remember = false,
+}: Credentials & { remember?: boolean }): Promise<ActionResult> {
+  const cookieStore = cookies();
+  // signInWithPassword가 auth 쿠키를 쓰기 전에 정책 플래그를 먼저 심는다.
+  cookieStore.set(REMEMBER_COOKIE, remember ? "1" : "0", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    ...(remember ? { maxAge: REMEMBER_MAX_AGE } : {}),
+  });
+
   const supabase = createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { error: "이메일 또는 비밀번호가 올바르지 않습니다." };
+  if (error) {
+    // 인증 실패 시 플래그를 남기면 다음 요청에서 기존 세션 만료가 연장될 수 있다.
+    cookieStore.delete(REMEMBER_COOKIE);
+    return { error: "이메일 또는 비밀번호가 올바르지 않습니다." };
+  }
   redirect("/");
 }
 
 export async function signOut() {
   const supabase = createClient();
+  cookies().delete(REMEMBER_COOKIE);
   await supabase.auth.signOut();
   redirect("/login");
 }
