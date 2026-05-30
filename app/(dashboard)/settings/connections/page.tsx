@@ -2,6 +2,11 @@ import { requireUser } from "@/lib/auth/get-user";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { PageHeader } from "@/components/page-header";
+import { ChannelBadge, type Channel } from "@/components/channel-badge";
+import { CheckCircle2, AlertCircle } from "lucide-react";
 
 type ConnectionRow = {
   expires_at: string;
@@ -35,30 +40,44 @@ async function loadConnections(userId: string) {
 }
 
 function ChannelCard({
+  channel,
   name,
   description,
   connection,
   startUrl,
 }: {
+  channel: Channel;
   name: string;
   description: string;
   connection: ConnectionRow | null;
   startUrl: string;
 }) {
   return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">{name}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {connection
-              ? `연결됨${connection.username ? ` · @${connection.username}` : ""} · 만료: ${new Date(
-                  connection.expires_at
-                ).toLocaleDateString("ko-KR")}`
-              : description}
-          </p>
+    <Card interactive className="p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3.5">
+          <ChannelBadge channel={channel} size="lg" />
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-medium text-foreground">{name}</h2>
+              {connection ? (
+                <Badge variant="success" dot>
+                  연결됨
+                </Badge>
+              ) : (
+                <Badge variant="outline">미연결</Badge>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {connection
+                ? `${connection.username ? `@${connection.username} · ` : ""}만료: ${new Date(
+                    connection.expires_at
+                  ).toLocaleDateString("ko-KR")}`
+                : description}
+            </p>
+          </div>
         </div>
-        <form action={startUrl} method="GET">
+        <form action={startUrl} method="GET" className="shrink-0">
           <Button type="submit" variant={connection ? "outline" : "default"}>
             {connection ? "재연결" : "연결하기"}
           </Button>
@@ -86,38 +105,52 @@ export default async function ConnectionsPage({
       : null;
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">채널 연동</h1>
+    <div className="space-y-8">
+      <PageHeader
+        title="채널 연동"
+        description="연결한 채널로 글을 한 번에 발행할 수 있습니다."
+      />
 
       {connectedLabel && (
-        <p className="rounded border border-green-300 bg-green-50 p-3 text-sm text-green-800">
-          {connectedLabel} 이(가) 성공적으로 연결되었습니다.
-        </p>
+        <Alert variant="success">
+          <CheckCircle2 />
+          <AlertDescription className="text-foreground">
+            {connectedLabel} 이(가) 성공적으로 연결되었습니다.
+          </AlertDescription>
+        </Alert>
       )}
       {searchParams.error && (
-        <p className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">
-          오류: {decodeURIComponent(searchParams.error)}
-        </p>
+        <Alert variant="destructive">
+          <AlertCircle />
+          <AlertDescription className="text-foreground">
+            오류: {decodeURIComponent(searchParams.error)}
+          </AlertDescription>
+        </Alert>
       )}
 
-      <ChannelCard
-        name="LinkedIn"
-        description="공식 API · 텍스트 최대 3000자"
-        connection={conns.linkedin}
-        startUrl="/api/linkedin/oauth/start"
-      />
-      <ChannelCard
-        name="Threads"
-        description="공식 API · 텍스트 최대 500자"
-        connection={conns.threads}
-        startUrl="/api/threads/oauth/start"
-      />
-      <ChannelCard
-        name="Instagram"
-        description="비즈니스 계정 + Facebook Page 연결 필요 · 카드 이미지 자동 생성"
-        connection={conns.instagram}
-        startUrl="/api/instagram/oauth/start"
-      />
+      <div className="space-y-3">
+        <ChannelCard
+          channel="linkedin"
+          name="LinkedIn"
+          description="공식 API · 텍스트 최대 3000자"
+          connection={conns.linkedin}
+          startUrl="/api/linkedin/oauth/start"
+        />
+        <ChannelCard
+          channel="threads"
+          name="Threads"
+          description="공식 API · 텍스트 최대 500자"
+          connection={conns.threads}
+          startUrl="/api/threads/oauth/start"
+        />
+        <ChannelCard
+          channel="instagram"
+          name="Instagram"
+          description="비즈니스 계정 + Facebook Page 연결 필요 · 카드 이미지 자동 생성"
+          connection={conns.instagram}
+          startUrl="/api/instagram/oauth/start"
+        />
+      </div>
     </div>
   );
 }

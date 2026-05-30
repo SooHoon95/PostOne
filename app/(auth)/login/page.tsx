@@ -21,7 +21,17 @@ export default function LoginPage() {
 
   return (
     <div className="space-y-6 rounded-lg border bg-card p-6 shadow-sm">
-      <h1 className="text-xl font-semibold">로그인</h1>
+      <div className="space-y-1.5 text-center">
+        <Link
+          href="/"
+          className="inline-block text-2xl font-bold tracking-tight"
+        >
+          Post<span className="text-primary">One</span>
+        </Link>
+        <p className="text-sm text-muted-foreground">
+          한 번 작성해 모든 채널에 발행하세요.
+        </p>
+      </div>
       <form action={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="email">이메일</Label>

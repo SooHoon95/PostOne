@@ -27,7 +27,17 @@ export default function SignupPage() {
 
   return (
     <div className="space-y-6 rounded-lg border bg-card p-6 shadow-sm">
-      <h1 className="text-xl font-semibold">가입하기</h1>
+      <div className="space-y-1.5 text-center">
+        <Link
+          href="/"
+          className="inline-block text-2xl font-bold tracking-tight"
+        >
+          Post<span className="text-primary">One</span>
+        </Link>
+        <p className="text-sm text-muted-foreground">
+          한 번 작성해 모든 채널에 발행하세요.
+        </p>
+      </div>
       <form action={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="email">이메일</Label>
@@ -37,8 +47,8 @@ export default function SignupPage() {
           <Label htmlFor="password">비밀번호 (8자 이상)</Label>
           <Input id="password" name="password" type="password" required minLength={8} />
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        {message && <p className="text-sm text-green-700">{message}</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        {message && <p className="text-sm text-success">{message}</p>}
         <Button type="submit" className="w-full">가입</Button>
       </form>
       <p className="text-sm text-muted-foreground">
