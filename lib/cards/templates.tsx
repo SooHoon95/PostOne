@@ -100,7 +100,7 @@ function MinimalWhite({ slide }: { slide: Slide }) {
             color: hasBg ? "#ffffff" : "#0f172a",
             lineHeight: 1.15,
             marginBottom: 40,
-            textShadow: hasBg ? "0 4px 24px rgba(0,0,0,0.45)" : undefined,
+            ...(hasBg ? { textShadow: "0 4px 24px rgba(0,0,0,0.45)" } : {}),
           }}
         >
           {slide.title}
@@ -113,7 +113,7 @@ function MinimalWhite({ slide }: { slide: Slide }) {
           color: hasBg ? "#f8fafc" : slide.title ? "#334155" : "#0f172a",
           lineHeight: 1.45,
           whiteSpace: "pre-wrap",
-          textShadow: hasBg ? "0 2px 16px rgba(0,0,0,0.45)" : undefined,
+          ...(hasBg ? { textShadow: "0 2px 16px rgba(0,0,0,0.45)" } : {}),
         }}
       >
         {slide.body}
