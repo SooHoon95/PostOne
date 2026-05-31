@@ -54,6 +54,7 @@ export function MultiChannelEditor({
   uploadBackground,
   connectedChannels,
   initialDraft,
+  autoContinue = false,
   saveDraft,
   deleteDraft,
 }: {
@@ -61,26 +62,51 @@ export function MultiChannelEditor({
   uploadBackground: (fileExt: string) => Promise<UploadResult>;
   connectedChannels: Record<Channel, boolean>;
   initialDraft: DraftData | null;
+  autoContinue?: boolean;
   saveDraft: (input: DraftData) => Promise<{ ok: boolean }>;
   deleteDraft: () => Promise<void>;
 }) {
-  const [selected, setSelected] = useState<Record<Channel, boolean>>({
-    linkedin: connectedChannels.linkedin,
-    threads: connectedChannels.threads,
-    instagram: connectedChannels.instagram,
-  });
+  // /drafts "이어쓰기"(autoContinue)로 진입하면 저장된 글로 폼을 바로 채운다.
+  // 일반 진입(네비 "글쓰기")은 빈 폼 + 복원 배너로 둔다.
+  const restore = autoContinue && initialDraft ? initialDraft : null;
 
-  const [body, setBody] = useState("");
+  const [selected, setSelected] = useState<Record<Channel, boolean>>(
+    restore
+      ? {
+          linkedin:
+            connectedChannels.linkedin &&
+            restore.selectedChannels.includes("linkedin"),
+          threads:
+            connectedChannels.threads &&
+            restore.selectedChannels.includes("threads"),
+          instagram:
+            connectedChannels.instagram &&
+            restore.selectedChannels.includes("instagram"),
+        }
+      : {
+          linkedin: connectedChannels.linkedin,
+          threads: connectedChannels.threads,
+          instagram: connectedChannels.instagram,
+        }
+  );
+
+  const [body, setBody] = useState(restore ? restore.body : "");
 
   // Instagram 카드 상태
-  const [cards, setCards] = useState<InstagramCard[]>([]);
-  const [igTemplate, setIgTemplate] = useState<TemplateName>("minimal-white");
+  const [cards, setCards] = useState<InstagramCard[]>(
+    restore ? restore.instagramCards : []
+  );
+  const [igTemplate, setIgTemplate] = useState<TemplateName>(
+    restore ? (restore.instagramTemplate as TemplateName) : "minimal-white"
+  );
 
   const [submitting, setSubmitting] = useState(false);
   const [results, setResults] = useState<ChannelResult[] | null>(null);
 
   // 임시저장 복원 배너 (initialDraft가 있고 아직 선택 전이면 노출)
-  const [showRestoreBanner, setShowRestoreBanner] = useState(!!initialDraft);
+  const [showRestoreBanner, setShowRestoreBanner] = useState(
+    !!initialDraft && !autoContinue
+  );
   // 자동저장 상태 표시
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
 

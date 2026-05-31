@@ -118,7 +118,10 @@ export default async function DraftsPage() {
           ) : null}
 
           <div className="mt-5 flex items-center gap-2">
-            <Link href="/compose" className={cn(buttonVariants(), "gap-1.5")}>
+            <Link
+              href="/compose?continue=1"
+              className={cn(buttonVariants(), "gap-1.5")}
+            >
               <PenLine className="size-4" />
               이어쓰기
             </Link>
