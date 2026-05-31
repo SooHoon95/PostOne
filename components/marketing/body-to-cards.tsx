@@ -7,9 +7,9 @@ const IG_GRADIENT =
   "linear-gradient(135deg, #FEDA75 0%, #FA7E1E 25%, #D62976 55%, #962FBF 80%, #4F5BD5 100%)";
 
 const SOURCE_PARAGRAPHS = [
-  "퍼스널 브랜딩, 결국 꾸준함 싸움이더라고요.",
-  "그런데 채널마다 글을 다시 다듬다 보면 정작 발행은 미뤄집니다.",
-  "그래서 본문 한 번만 쓰면 카드뉴스까지 자동으로 만들기로 했어요.",
+  "표지 · 퍼스널 브랜딩, 결국 꾸준함 싸움",
+  "본문 1 · 채널마다 다시 쓰다 보면 발행이 미뤄진다",
+  "마무리 · 카드 내용만 넣으면 디자인은 자동",
 ];
 
 const GENERATED_CARDS = [
@@ -23,8 +23,9 @@ export interface BodyToCardsProps {
 }
 
 /**
- * Side-by-side visual: a plain text body (left) is transformed into a set of
- * Instagram cards (right). Communicates the core PostOne differentiator.
+ * Side-by-side visual: per-card content the user types (left) is rendered into
+ * a set of designed Instagram cards (right). Communicates the core PostOne
+ * differentiator — you supply the words, PostOne does the design.
  */
 export function BodyToCards({ className }: BodyToCardsProps) {
   return (
@@ -43,11 +44,11 @@ export function BodyToCards({ className }: BodyToCardsProps) {
             <span className="size-2.5 rounded-full bg-success/80" />
           </span>
           <span className="ml-1 text-xs font-medium text-muted-foreground">
-            본문 에디터
+            카드 내용 입력
           </span>
         </div>
         <p className="mb-3 text-sm font-semibold text-foreground">
-          오늘 쓴 글
+          슬라이드별 제목·설명
         </p>
         <div className="space-y-3">
           {SOURCE_PARAGRAPHS.map((p) => (

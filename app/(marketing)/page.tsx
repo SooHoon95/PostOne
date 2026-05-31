@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 export const metadata: Metadata = {
   title: "PostOne — 한 번 쓰고, 세 채널에 동시에",
   description:
-    "본문 한 번이면 LinkedIn·Threads·Instagram에 동시 발행되고, 인스타 카드뉴스까지 자동으로 만들어집니다. 퍼스널 브랜딩하는 직장인을 위한 멀티채널 퍼블리싱.",
+    "본문 한 번이면 LinkedIn·Threads에 발행하고 인스타 캡션까지 채웁니다. 카드 내용만 입력하면 인스타 카드뉴스는 디자인까지 자동 완성. 퍼스널 브랜딩하는 직장인을 위한 멀티채널 퍼블리싱.",
 };
 
 const CHANNELS: { channel: Channel; label: string }[] = [
@@ -42,7 +42,7 @@ const FEATURES = [
     icon: Images,
     title: "디자인 못 해도 카드뉴스가 나옵니다",
     description:
-      "긴 본문을 인스타 카드 슬라이드로 알아서 나눠 그려줍니다. 디자인 툴 없이도 캐러셀 한 세트가 완성돼요.",
+      "카드별 제목과 설명만 적으면 템플릿·배경을 입힌 인스타 캐러셀이 완성됩니다. 디자인 툴도, 손맛도 필요 없어요.",
   },
   {
     icon: SplitSquareHorizontal,
@@ -98,9 +98,9 @@ export default function LandingPage() {
               </span>
             </h1>
             <p className="max-w-xl text-balance text-lg leading-relaxed text-muted-foreground">
-              본문 하나면 LinkedIn·Threads·Instagram에 한 번에 발행됩니다. 긴 글은
-              인스타 카드뉴스로 자동 변환까지. 콘텐츠 만드는 시간 대신, 콘텐츠에
-              집중하세요.
+              본문 하나면 LinkedIn·Threads 발행과 인스타 캡션이 한 번에. 카드
+              내용만 넣으면 인스타 카드뉴스는 디자인까지 자동 완성. 콘텐츠 만드는
+              시간 대신, 콘텐츠에 집중하세요.
             </p>
             <div className="flex flex-col gap-3 sm:flex-row">
               <Link
@@ -247,11 +247,11 @@ export default function LandingPage() {
             PostOne만의 차별점
           </Badge>
           <h2 className="mt-4 text-balance text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            본문을 쓰면, 카드뉴스가 됩니다
+            카드 내용만 넣으면, 카드뉴스가 완성됩니다
           </h2>
           <p className="mt-4 text-balance text-lg text-muted-foreground">
-            문단을 슬라이드로 나누고, 표지부터 마무리까지 디자인을 입혀 인스타
-            캐러셀로 만들어 둡니다. 당신은 글만 쓰면 돼요.
+            카드별 제목과 설명만 입력하면 표지부터 마무리까지 템플릿·배경을 입혀
+            인스타 캐러셀로 만들어 둡니다. 디자인은 PostOne 몫이에요.
           </p>
         </Reveal>
 
