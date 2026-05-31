@@ -72,12 +72,12 @@ export async function refreshConnection(
         .from("linkedin_connections")
         .update(update)
         .eq("user_id", user.id);
-      if (dbError) return { ok: false, error: dbError.message };
+      if (dbError) return { ok: false, error: "갱신 정보 저장에 실패했습니다. 잠시 후 다시 시도해 주세요." };
 
       revalidatePath("/settings/connections");
       return { ok: true, expiresAt };
     } catch (e) {
-      return { ok: false, error: e instanceof Error ? e.message : "갱신 실패" };
+      return { ok: false, error: "토큰 갱신에 실패했습니다. 재연동이 필요할 수 있습니다." };
     }
   }
 
@@ -114,11 +114,11 @@ export async function refreshConnection(
         expires_at: expiresAt,
       })
       .eq("user_id", user.id);
-    if (dbError) return { ok: false, error: dbError.message };
+    if (dbError) return { ok: false, error: "갱신 정보 저장에 실패했습니다. 잠시 후 다시 시도해 주세요." };
 
     revalidatePath("/settings/connections");
     return { ok: true, expiresAt };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "갱신 실패" };
+    return { ok: false, error: "토큰 갱신에 실패했습니다. 재연동이 필요할 수 있습니다." };
   }
 }
