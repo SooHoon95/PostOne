@@ -295,7 +295,7 @@ export async function publishToInstagram({
 
     await supabase.from("posts").insert({
       user_id: user.id,
-      content: storedContent || "(빈 카드)",
+      content: cap || storedContent || "(빈 카드)",
       channel: "instagram",
       external_id: mediaId,
       status: "success",
@@ -310,7 +310,7 @@ export async function publishToInstagram({
     const msg = e instanceof Error ? e.message : "Unknown error";
     await supabase.from("posts").insert({
       user_id: user.id,
-      content: storedContent || "(빈 카드)",
+      content: cap || storedContent || "(빈 카드)",
       channel: "instagram",
       status: "failed",
       error_message: msg,

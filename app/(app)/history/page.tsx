@@ -65,30 +65,32 @@ function ChannelStatus({ post }: { post: Post }) {
 function PostCard({ post }: { post: Post }) {
   const succeeded = post.status === "success";
   return (
-    <Card interactive className="p-5">
-      <div className="flex items-center justify-between gap-3">
-        <ChannelStatus post={post} />
-        <time className="shrink-0 text-xs text-muted-foreground">
-          {new Date(post.created_at).toLocaleString("ko-KR")}
-        </time>
-      </div>
+    <Link href={`/history/${post.id}`} className="block">
+      <Card interactive className="p-5">
+        <div className="flex items-center justify-between gap-3">
+          <ChannelStatus post={post} />
+          <time className="shrink-0 text-xs text-muted-foreground">
+            {new Date(post.created_at).toLocaleString("ko-KR")}
+          </time>
+        </div>
 
-      <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">
-        {post.content}
-      </p>
+        <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">
+          {post.content}
+        </p>
 
-      {succeeded
-        ? post.external_id && (
-            <p className="mt-2 font-mono text-xs text-muted-foreground">
-              {post.external_id}
-            </p>
-          )
-        : post.error_message && (
-            <p className="mt-2 text-xs text-destructive">
-              {post.error_message}
-            </p>
-          )}
-    </Card>
+        {succeeded
+          ? post.external_id && (
+              <p className="mt-2 font-mono text-xs text-muted-foreground">
+                {post.external_id}
+              </p>
+            )
+          : post.error_message && (
+              <p className="mt-2 text-xs text-destructive">
+                {post.error_message}
+              </p>
+            )}
+      </Card>
+    </Link>
   );
 }
 
@@ -101,22 +103,24 @@ function BatchCard({ posts }: { posts: Post[] }) {
     a.created_at > b.created_at ? a : b
   );
   return (
-    <Card interactive className="p-5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          {posts.map((p) => (
-            <ChannelStatus key={p.id} post={p} />
-          ))}
+    <Link href={`/history/${primary.id}`} className="block">
+      <Card interactive className="p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            {posts.map((p) => (
+              <ChannelStatus key={p.id} post={p} />
+            ))}
+          </div>
+          <time className="shrink-0 text-xs text-muted-foreground">
+            {new Date(latest.created_at).toLocaleString("ko-KR")}
+          </time>
         </div>
-        <time className="shrink-0 text-xs text-muted-foreground">
-          {new Date(latest.created_at).toLocaleString("ko-KR")}
-        </time>
-      </div>
 
-      <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">
-        {primary.content}
-      </p>
-    </Card>
+        <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">
+          {primary.content}
+        </p>
+      </Card>
+    </Link>
   );
 }
 
