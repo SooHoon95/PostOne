@@ -28,10 +28,10 @@ function asChannel(value: string): Channel | null {
     : null;
 }
 
-/** 발행 본문: 텍스트 채널(linkedin/threads) 우선, 없으면 instagram. */
+/** 발행 본문: 텍스트 채널(linkedin/threads) 우선, 없으면 instagram content. */
 function pickBody(posts: Post[]): string {
   const text = posts.find((p) => p.channel !== "instagram");
-  return (text ?? posts[0])?.content ?? "";
+  return ((text ?? posts[0])?.content ?? "").trim();
 }
 
 /** 인스타 결과의 이미지 썸네일 캐러셀. */
@@ -123,7 +123,11 @@ export default async function HistoryDetailPage({
       <section className="space-y-2">
         <h2 className="text-sm font-medium text-muted-foreground">본문</h2>
         <Card className="p-5">
-          <p className="whitespace-pre-wrap text-sm text-foreground">{body}</p>
+          {body ? (
+            <p className="whitespace-pre-wrap text-sm text-foreground">{body}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">본문 없음</p>
+          )}
         </Card>
       </section>
 

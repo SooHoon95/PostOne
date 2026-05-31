@@ -172,7 +172,8 @@ export type InstagramCard = {
 type InstagramInput = {
   cards: InstagramCard[];        // 빈 배열이면 1장 빈 카드
   template?: TemplateName;
-  caption?: string;              // 게시물 캡션 (이미지 아래 텍스트)
+  caption?: string;              // 게시물 캡션 (이미지 아래 텍스트) — 인스타 게시용
+  body?: string;                 // 발행 기록용 본문 (caption과 분리)
   batchId?: string;
 };
 
@@ -238,6 +239,7 @@ export async function publishToInstagram({
   cards,
   template = "minimal-white",
   caption,
+  body,
   batchId,
 }: InstagramInput): Promise<MediaResult> {
   const user = await requireUser();
@@ -265,10 +267,9 @@ export async function publishToInstagram({
   });
 
   const slides = cardsToSlides(cards);
+  // caption = 인스타 게시용(본문 없으면 카드합성 폴백), content = 기록용 순수 본문.
   const cap = buildCaption(cards, caption);
-  const storedContent = cards
-    .map((c) => `[${c.title}] ${c.description}`)
-    .join("\n");
+  const storedBody = body?.trim() ?? "";
 
   try {
     const pngs = await renderSlidesToPngs(slides, template);
@@ -295,7 +296,7 @@ export async function publishToInstagram({
 
     await supabase.from("posts").insert({
       user_id: user.id,
-      content: cap || storedContent || "(빈 카드)",
+      content: storedBody,
       channel: "instagram",
       external_id: mediaId,
       status: "success",
@@ -310,7 +311,7 @@ export async function publishToInstagram({
     const msg = e instanceof Error ? e.message : "Unknown error";
     await supabase.from("posts").insert({
       user_id: user.id,
-      content: cap || storedContent || "(빈 카드)",
+      content: storedBody,
       channel: "instagram",
       status: "failed",
       error_message: msg,
@@ -378,9 +379,10 @@ export async function publishMulti(
       const r = await publishToInstagram({
         cards: instagramCards,
         template: input.instagramTemplate,
-        // 인스타 캡션 = 본문 (본문도 그대로 게시). 카드는 카드만 담당.
-        // 본문 없으면 publishToInstagram이 카드 제목/설명으로 자동 생성.
+        // 인스타 캡션(게시용) = 본문. 본문 없으면 카드 제목/설명으로 자동 생성.
         caption: body.trim() || undefined,
+        // 기록용 본문(content)은 순수 본문만. caption과 분리.
+        body,
         batchId,
       });
       results.push({

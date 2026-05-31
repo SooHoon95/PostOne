@@ -64,6 +64,7 @@ function ChannelStatus({ post }: { post: Post }) {
 /** 단일 post 카드 (채널 탭 + null batch 단건). */
 function PostCard({ post }: { post: Post }) {
   const succeeded = post.status === "success";
+  const body = post.content.trim();
   return (
     <Link href={`/history/${post.id}`} className="block">
       <Card interactive className="p-5">
@@ -74,9 +75,13 @@ function PostCard({ post }: { post: Post }) {
           </time>
         </div>
 
-        <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">
-          {post.content}
-        </p>
+        {body ? (
+          <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">
+            {body}
+          </p>
+        ) : (
+          <p className="mt-3 text-sm text-muted-foreground">(본문 없음)</p>
+        )}
 
         {succeeded
           ? post.external_id && (
@@ -96,9 +101,10 @@ function PostCard({ post }: { post: Post }) {
 
 /** 묶음 카드: 본문 1개 + 채널별 상태 배지 묶음. */
 function BatchCard({ posts }: { posts: Post[] }) {
-  // 묶음 본문은 LinkedIn/Threads 기준(동일 body). 없으면 첫 post 내용.
+  // 묶음 본문은 LinkedIn/Threads 기준(동일 body). 없고 인스타만이면 인스타 content.
   const primary =
     posts.find((p) => p.channel !== "instagram") ?? posts[0];
+  const body = primary.content.trim();
   const latest = posts.reduce((a, b) =>
     a.created_at > b.created_at ? a : b
   );
@@ -116,9 +122,13 @@ function BatchCard({ posts }: { posts: Post[] }) {
           </time>
         </div>
 
-        <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">
-          {primary.content}
-        </p>
+        {body ? (
+          <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">
+            {body}
+          </p>
+        ) : (
+          <p className="mt-3 text-sm text-muted-foreground">(본문 없음)</p>
+        )}
       </Card>
     </Link>
   );
