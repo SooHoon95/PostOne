@@ -172,8 +172,7 @@ export type InstagramCard = {
 type InstagramInput = {
   cards: InstagramCard[];        // 빈 배열이면 1장 빈 카드
   template?: TemplateName;
-  caption?: string;              // 게시물 캡션 (이미지 아래 텍스트) — 인스타 게시용
-  body?: string;                 // 발행 기록용 본문 (caption과 분리)
+  body?: string;                 // 본문 = 캡션 = 발행 기록(content)
   batchId?: string;
 };
 
@@ -189,17 +188,6 @@ function cardsToSlides(cards: InstagramCard[]): Slide[] {
     body: card.description.trim(),
     backgroundImageUrl: card.backgroundImageUrl || undefined,
   }));
-}
-
-function buildCaption(cards: InstagramCard[], override?: string): string {
-  if (override !== undefined) return override.slice(0, INSTAGRAM_MAX);
-  if (cards.length === 0) return "";
-  // 카드들의 제목/설명을 합쳐서 자동 캡션 생성
-  const auto = cards
-    .map((c) => [c.title, c.description].filter(Boolean).join(" — "))
-    .filter(Boolean)
-    .join("\n\n");
-  return auto.slice(0, INSTAGRAM_MAX);
 }
 
 export type UploadResult = {
@@ -238,7 +226,6 @@ export async function createCardBgUpload(
 export async function publishToInstagram({
   cards,
   template = "minimal-white",
-  caption,
   body,
   batchId,
 }: InstagramInput): Promise<MediaResult> {
@@ -267,9 +254,10 @@ export async function publishToInstagram({
   });
 
   const slides = cardsToSlides(cards);
-  // caption = 인스타 게시용(본문 없으면 카드합성 폴백), content = 기록용 순수 본문.
-  const cap = buildCaption(cards, caption);
-  const storedBody = body?.trim() ?? "";
+  // caption = 본문(body). 카드 자동합성 폴백을 쓰지 않는다 — 본문 없으면 빈 캡션("").
+  // content(기록용)도 동일하게 본문만 저장한다.
+  const cap = (body ?? "").trim().slice(0, INSTAGRAM_MAX);
+  const storedBody = (body ?? "").trim();
 
   try {
     const pngs = await renderSlidesToPngs(slides, template);
@@ -301,6 +289,7 @@ export async function publishToInstagram({
       external_id: mediaId,
       status: "success",
       media_urls: urls,
+      instagram_cards: cards,
       published_at: new Date().toISOString(),
       batch_id: batchId ?? null,
     });
@@ -315,6 +304,7 @@ export async function publishToInstagram({
       channel: "instagram",
       status: "failed",
       error_message: msg,
+      instagram_cards: cards,
       batch_id: batchId ?? null,
     });
     return { error: msg };
@@ -379,9 +369,7 @@ export async function publishMulti(
       const r = await publishToInstagram({
         cards: instagramCards,
         template: input.instagramTemplate,
-        // 인스타 캡션(게시용) = 본문. 본문 없으면 카드 제목/설명으로 자동 생성.
-        caption: body.trim() || undefined,
-        // 기록용 본문(content)은 순수 본문만. caption과 분리.
+        // 본문 = 캡션 = 기록용 content. 카드 텍스트는 캡션이 아니다.
         body,
         batchId,
       });

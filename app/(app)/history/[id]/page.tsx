@@ -9,7 +9,7 @@ import { ChannelBadge, type Channel } from "@/components/channel-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
-import type { Post } from "@/lib/supabase/types";
+import type { InstagramCard, Post } from "@/lib/supabase/types";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -51,6 +51,52 @@ function MediaCarousel({ urls }: { urls: string[] }) {
   );
 }
 
+/** 인스타그램 카드 섹션: 카드별 제목/설명 + 이미지 썸네일. */
+function InstagramCardsSection({
+  cards,
+  mediaUrls,
+}: {
+  cards: InstagramCard[] | null;
+  mediaUrls: string[] | null;
+}) {
+  const hasCards = cards != null && cards.length > 0;
+  const hasMedia = mediaUrls != null && mediaUrls.length > 0;
+  if (!hasCards && !hasMedia) return null;
+
+  return (
+    <div className="mt-4 space-y-3">
+      <p className="text-xs font-medium text-muted-foreground">인스타그램 카드</p>
+      {hasCards && (
+        <ul className="space-y-2">
+          {cards.map((card, i) => (
+            <li
+              key={i}
+              className="rounded-md border border-border bg-muted/40 p-3"
+            >
+              {card.title ? (
+                <p className="text-sm font-medium text-foreground">
+                  {card.title}
+                </p>
+              ) : null}
+              {card.description ? (
+                <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">
+                  {card.description}
+                </p>
+              ) : null}
+              {!card.title && !card.description ? (
+                <p className="text-xs text-muted-foreground">
+                  {i + 1}번째 카드 (텍스트 없음)
+                </p>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+      {hasMedia && <MediaCarousel urls={mediaUrls} />}
+    </div>
+  );
+}
+
 /** 채널별 발행 결과 카드. */
 function ChannelResultCard({ post }: { post: Post }) {
   const channel = asChannel(post.channel);
@@ -79,9 +125,12 @@ function ChannelResultCard({ post }: { post: Post }) {
         )
       )}
 
-      {post.channel === "instagram" &&
-        post.media_urls &&
-        post.media_urls.length > 0 && <MediaCarousel urls={post.media_urls} />}
+      {post.channel === "instagram" && (
+        <InstagramCardsSection
+          cards={post.instagram_cards}
+          mediaUrls={post.media_urls}
+        />
+      )}
     </Card>
   );
 }

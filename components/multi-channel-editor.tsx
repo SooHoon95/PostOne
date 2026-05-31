@@ -303,44 +303,41 @@ export function MultiChannelEditor({
         </div>
       </Card>
 
-      {/* 본문 (LinkedIn + Threads) */}
-      {bodyChannelsSelected && (
-        <Card className="p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium">본문</p>
-            <span className="text-xs text-muted-foreground">LinkedIn · Threads 발행 / Instagram 캡션</span>
-          </div>
-          <Textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={10}
-            placeholder="본문을 작성하세요..."
-          />
-          <div className="flex flex-wrap gap-4 text-xs">
-            {selectedChannels.includes("linkedin") && (
-              <span
-                className={body.length > LIMITS.linkedin ? "text-destructive" : "text-muted-foreground"}
-              >
-                LinkedIn: {body.length} / {LIMITS.linkedin}
-              </span>
-            )}
-            {selectedChannels.includes("threads") && (
-              <span
-                className={body.length > LIMITS.threads ? "text-destructive" : "text-muted-foreground"}
-              >
-                Threads: {body.length} / {LIMITS.threads}
-              </span>
-            )}
-            {selectedChannels.includes("instagram") && (
-              <span
-                className={body.length > LIMITS.instagram ? "text-destructive" : "text-muted-foreground"}
-              >
-                Instagram: {body.length} / {LIMITS.instagram}
-              </span>
-            )}
-          </div>
-        </Card>
-      )}
+      {/* 본문 (항상 표시) */}
+      <Card className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium">본문 (LinkedIn·Threads 발행 / Instagram 캡션)</p>
+        </div>
+        <Textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          rows={10}
+          placeholder="본문을 작성하세요..."
+        />
+        <div className="flex flex-wrap gap-4 text-xs">
+          {selectedChannels.includes("linkedin") && (
+            <span
+              className={body.length > LIMITS.linkedin ? "text-destructive" : "text-muted-foreground"}
+            >
+              LinkedIn: {body.length} / {LIMITS.linkedin}
+            </span>
+          )}
+          {selectedChannels.includes("threads") && (
+            <span
+              className={body.length > LIMITS.threads ? "text-destructive" : "text-muted-foreground"}
+            >
+              Threads: {body.length} / {LIMITS.threads}
+            </span>
+          )}
+          {selectedChannels.includes("instagram") && (
+            <span
+              className={body.length > LIMITS.instagram ? "text-destructive" : "text-muted-foreground"}
+            >
+              Instagram: {body.length} / {LIMITS.instagram}
+            </span>
+          )}
+        </div>
+      </Card>
 
       {/* Instagram 카드 */}
       {selected.instagram && connectedChannels.instagram && (

@@ -48,6 +48,12 @@ export type Channel = "linkedin" | "threads" | "instagram";
 
 export type PublishStatus = "pending" | "success" | "failed";
 
+export type InstagramCard = {
+  title: string;
+  description: string;
+  backgroundImageUrl?: string;
+};
+
 export type Post = {
   id: string;
   user_id: string;
@@ -58,6 +64,7 @@ export type Post = {
   error_message: string | null;
   published_at: string | null;
   media_urls: string[] | null;
+  instagram_cards: InstagramCard[] | null;
   batch_id: string | null;
   created_at: string;
 };
