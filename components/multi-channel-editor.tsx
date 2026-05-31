@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { createClient as createBrowserClient } from "@/lib/supabase/client";
+import { BUCKET } from "@/lib/cards/upload";
 import type {
   Channel,
   ChannelResult,
@@ -15,6 +17,12 @@ import type {
 } from "@/app/(app)/compose/actions";
 
 const BACKGROUND_MAX_BYTES = 8 * 1024 * 1024; // 8MB
+
+const EXT_BY_TYPE: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
 
 type TemplateName = "minimal-white" | "gradient" | "photo-overlay";
 
@@ -44,7 +52,7 @@ export function MultiChannelEditor({
   connectedChannels,
 }: {
   publish: (input: MultiPublishInput) => Promise<{ results: ChannelResult[] }>;
-  uploadBackground: (formData: FormData) => Promise<UploadResult>;
+  uploadBackground: (fileExt: string) => Promise<UploadResult>;
   connectedChannels: Record<Channel, boolean>;
 }) {
   const [selected, setSelected] = useState<Record<Channel, boolean>>({
@@ -109,16 +117,29 @@ export function MultiChannelEditor({
       setUploadErrors((e) => ({ ...e, [idx]: "8MB 이하만 가능" }));
       return;
     }
+    const ext = EXT_BY_TYPE[file.type];
+    if (!ext) {
+      setUploadErrors((e) => ({ ...e, [idx]: "JPG · PNG · WEBP만 가능" }));
+      return;
+    }
     setUploadingIdx(idx);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await uploadBackground(fd);
-      if (res.error || !res.url) {
+      const res = await uploadBackground(ext);
+      if (res.error || !res.path || !res.token || !res.publicUrl) {
         setUploadErrors((e) => ({ ...e, [idx]: res.error ?? "업로드 실패" }));
         return;
       }
-      setBackground(idx, res.url);
+      const supabase = createBrowserClient();
+      const { error } = await supabase.storage
+        .from(BUCKET)
+        .uploadToSignedUrl(res.path, res.token, file, {
+          contentType: file.type,
+        });
+      if (error) {
+        setUploadErrors((e) => ({ ...e, [idx]: "업로드 실패" }));
+        return;
+      }
+      setBackground(idx, res.publicUrl);
     } catch {
       setUploadErrors((e) => ({ ...e, [idx]: "업로드 실패" }));
     } finally {

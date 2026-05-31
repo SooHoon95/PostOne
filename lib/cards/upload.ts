@@ -1,6 +1,6 @@
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 
-const BUCKET = "cards";
+export const BUCKET = "cards";
 
 /**
  * Upload PNG buffers to Supabase Storage and return public URLs.
@@ -40,31 +40,21 @@ export async function uploadCardPngs(
 
 export const BACKGROUND_MAX_BYTES = 8 * 1024 * 1024; // 8MB
 
-const EXT_BY_TYPE: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif",
-};
+export const BACKGROUND_ALLOWED_EXTS = ["jpg", "jpeg", "png", "webp"] as const;
 
 /**
- * Upload a user-provided background image to Supabase Storage and return its
- * public URL. Reuses the same public `cards` bucket as the generated PNGs.
+ * Issue a signed upload URL so the client can upload a background image
+ * directly to Supabase Storage, bypassing the Vercel serverless body limit.
  *
- * Validates MIME type (image/*) and size (<= 8MB) before upload. Files live
- * under `${userId}/bg-${ts}.<ext>` so they never collide with card PNGs.
+ * The service_role key signs a one-time upload token for a deterministic path
+ * (`${userId}/bg-${ts}.<ext>`) in the public `cards` bucket. The client uploads
+ * the file with `uploadToSignedUrl(path, token, file)`; no service_role key or
+ * bucket RLS change is needed on the client.
  */
-export async function uploadBackgroundImage(
+export async function createBackgroundUploadUrl(
   userId: string,
-  file: File
-): Promise<string> {
-  if (!file.type.startsWith("image/")) {
-    throw new Error("이미지 파일만 업로드 가능합니다.");
-  }
-  if (file.size > BACKGROUND_MAX_BYTES) {
-    throw new Error("이미지 용량은 8MB 이하만 가능합니다.");
-  }
-
+  fileExt: string
+): Promise<{ path: string; token: string; publicUrl: string }> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
   if (!supabaseUrl || !serviceKey) {
@@ -74,16 +64,15 @@ export async function uploadBackgroundImage(
     auth: { persistSession: false },
   });
 
-  const ext = EXT_BY_TYPE[file.type] ?? "img";
-  const path = `${userId}/bg-${Date.now()}.${ext}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
+  const path = `${userId}/bg-${Date.now()}.${fileExt}`;
 
-  const { error } = await admin.storage.from(BUCKET).upload(path, buffer, {
-    contentType: file.type,
-    upsert: true,
-  });
-  if (error) throw new Error(`Background upload failed: ${error.message}`);
+  const { data, error } = await admin.storage
+    .from(BUCKET)
+    .createSignedUploadUrl(path);
+  if (error || !data) {
+    throw new Error(`Background upload URL failed: ${error?.message ?? "unknown"}`);
+  }
 
   const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(path);
-  return pub.publicUrl;
+  return { path: data.path, token: data.token, publicUrl: pub.publicUrl };
 }

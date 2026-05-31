@@ -8,7 +8,11 @@ import { publishPost as threadsPublish } from "@/lib/threads/client";
 import { publishSingle, publishCarousel } from "@/lib/instagram/client";
 import type { Slide } from "@/lib/cards/text-split";
 import { renderSlidesToPngs } from "@/lib/cards/generator";
-import { uploadCardPngs, uploadBackgroundImage } from "@/lib/cards/upload";
+import {
+  uploadCardPngs,
+  createBackgroundUploadUrl,
+  BACKGROUND_ALLOWED_EXTS,
+} from "@/lib/cards/upload";
 import type { TemplateName } from "@/lib/cards/templates";
 import { revalidatePath } from "next/cache";
 
@@ -192,24 +196,33 @@ function buildCaption(cards: InstagramCard[], override?: string): string {
   return auto.slice(0, INSTAGRAM_MAX);
 }
 
-export type UploadResult = { url?: string; error?: string };
+export type UploadResult = {
+  path?: string;
+  token?: string;
+  publicUrl?: string;
+  error?: string;
+};
 
 /**
- * 카드 배경 이미지 업로드. 클라이언트의 File을 FormData로 받아 Storage에 올리고
- * public URL을 반환한다. 타입/용량 검증은 uploadBackgroundImage에서 수행.
+ * 카드 배경 signed upload URL 발급. 파일 대신 확장자만 받아(작은 응답이라 body
+ * 제한과 무관) signed token/path/publicUrl을 반환한다. 클라이언트가 이 토큰으로
+ * Supabase Storage에 직접 업로드한다(Vercel 함수 우회).
  */
-export async function uploadCardBackground(
-  formData: FormData
+export async function createCardBgUpload(
+  fileExt: string
 ): Promise<UploadResult> {
-  const file = formData.get("file");
-  if (!(file instanceof File)) {
-    return { error: "이미지 파일이 없습니다." };
+  const ext = fileExt.toLowerCase();
+  if (!(BACKGROUND_ALLOWED_EXTS as readonly string[]).includes(ext)) {
+    return { error: "JPG · PNG · WEBP 형식만 가능합니다." };
   }
 
   const user = await requireUser();
   try {
-    const url = await uploadBackgroundImage(user.id, file);
-    return { url };
+    const { path, token, publicUrl } = await createBackgroundUploadUrl(
+      user.id,
+      ext
+    );
+    return { path, token, publicUrl };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "업로드 실패";
     return { error: msg };
