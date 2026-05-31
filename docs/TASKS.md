@@ -8,8 +8,13 @@
 
 ## To Do
 
+### 다음 구현 (계획: `docs/plans/2026-05-31-draft-image-schedule.md` · 순차)
+- [ ] ① 이미지 업로드 — 사용자 이미지 → IG 카드 배경 (Storage 재사용) · Phase 2
+- [ ] ② 임시저장 — drafts 테이블 자동저장/복원 (세션 끊겨도 복원, 서버) · Phase 1
+- [ ] ③ 예약 발행 — Supabase pg_cron + cron route, scheduled_at/status/재시도 · Phase 2
+
+### 기타
 - [ ] 랜딩 후속 — 가격표(/pricing) 페이지, FAQ 섹션, 실제 제품 스크린샷 교체
-- [ ] 예약 발행(스케줄링) — 발행 큐 + 시간 지정
 - [ ] 결제 연동 — Toss Payments + 4단계 요금제
 - [ ] 사용량 미터링 — 발행 수/AI 변환 카운트
 - [ ] 온보딩 플로우
