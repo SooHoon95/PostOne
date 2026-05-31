@@ -15,6 +15,7 @@ export type Slide = {
   total: number;
   title?: string; // shown on first slide
   body: string;
+  backgroundImageUrl?: string; // optional card background (public URL)
 };
 
 export function splitToSlides(input: string, title?: string): Slide[] {

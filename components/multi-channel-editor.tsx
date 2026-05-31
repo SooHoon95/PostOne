@@ -11,7 +11,10 @@ import type {
   ChannelResult,
   InstagramCard,
   MultiPublishInput,
+  UploadResult,
 } from "@/app/(app)/compose/actions";
+
+const BACKGROUND_MAX_BYTES = 8 * 1024 * 1024; // 8MB
 
 type TemplateName = "minimal-white" | "gradient" | "photo-overlay";
 
@@ -37,9 +40,11 @@ const ORDINAL = ["첫번째", "두번째", "세번째", "네번째", "다섯번�
 
 export function MultiChannelEditor({
   publish,
+  uploadBackground,
   connectedChannels,
 }: {
   publish: (input: MultiPublishInput) => Promise<{ results: ChannelResult[] }>;
+  uploadBackground: (formData: FormData) => Promise<UploadResult>;
   connectedChannels: Record<Channel, boolean>;
 }) {
   const [selected, setSelected] = useState<Record<Channel, boolean>>({
@@ -56,6 +61,10 @@ export function MultiChannelEditor({
 
   const [submitting, setSubmitting] = useState(false);
   const [results, setResults] = useState<ChannelResult[] | null>(null);
+
+  // 카드 배경 이미지 업로드 상태 (카드 인덱스별)
+  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
+  const [uploadErrors, setUploadErrors] = useState<Record<number, string>>({});
 
   const selectedChannels = useMemo(
     () =>
@@ -79,6 +88,42 @@ export function MultiChannelEditor({
 
   function updateCard(idx: number, field: keyof InstagramCard, value: string) {
     setCards(cards.map((c, i) => (i === idx ? { ...c, [field]: value } : c)));
+  }
+
+  function setBackground(idx: number, url: string | undefined) {
+    setCards((prev) =>
+      prev.map((c, i) =>
+        i === idx ? { ...c, backgroundImageUrl: url } : c
+      )
+    );
+  }
+
+  async function onPickBackground(idx: number, file: File | undefined) {
+    if (!file) return;
+    setUploadErrors((e) => ({ ...e, [idx]: "" }));
+    if (!file.type.startsWith("image/")) {
+      setUploadErrors((e) => ({ ...e, [idx]: "이미지 파일만 가능" }));
+      return;
+    }
+    if (file.size > BACKGROUND_MAX_BYTES) {
+      setUploadErrors((e) => ({ ...e, [idx]: "8MB 이하만 가능" }));
+      return;
+    }
+    setUploadingIdx(idx);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await uploadBackground(fd);
+      if (res.error || !res.url) {
+        setUploadErrors((e) => ({ ...e, [idx]: res.error ?? "업로드 실패" }));
+        return;
+      }
+      setBackground(idx, res.url);
+    } catch {
+      setUploadErrors((e) => ({ ...e, [idx]: "업로드 실패" }));
+    } finally {
+      setUploadingIdx(null);
+    }
   }
 
   async function onSubmit() {
@@ -236,6 +281,48 @@ export function MultiChannelEditor({
                     rows={3}
                     placeholder="설명"
                   />
+
+                  {/* 배경 이미지 */}
+                  <div className="space-y-2">
+                    {card.backgroundImageUrl ? (
+                      <div className="flex items-center gap-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={card.backgroundImageUrl}
+                          alt=""
+                          className="h-16 w-16 rounded-md border border-input object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setBackground(i, undefined)}
+                          className="text-xs text-red-600 hover:underline"
+                        >
+                          배경 제거
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                        <span className="rounded-md border border-input bg-card px-3 py-1.5 text-foreground">
+                          {uploadingIdx === i ? "업로드 중..." : "배경 이미지"}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploadingIdx === i}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            e.target.value = "";
+                            onPickBackground(i, f);
+                          }}
+                        />
+                        <span>JPG · PNG · 최대 8MB</span>
+                      </label>
+                    )}
+                    {uploadErrors[i] && (
+                      <p className="text-xs text-destructive">{uploadErrors[i]}</p>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

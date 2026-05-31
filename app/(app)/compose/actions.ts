@@ -8,7 +8,7 @@ import { publishPost as threadsPublish } from "@/lib/threads/client";
 import { publishSingle, publishCarousel } from "@/lib/instagram/client";
 import type { Slide } from "@/lib/cards/text-split";
 import { renderSlidesToPngs } from "@/lib/cards/generator";
-import { uploadCardPngs } from "@/lib/cards/upload";
+import { uploadCardPngs, uploadBackgroundImage } from "@/lib/cards/upload";
 import type { TemplateName } from "@/lib/cards/templates";
 import { revalidatePath } from "next/cache";
 
@@ -158,6 +158,7 @@ export async function publishToThreads({ content }: Input): Promise<Result> {
 export type InstagramCard = {
   title: string;       // 카드 제목 (빈 문자열 OK)
   description: string; // 카드 설명 (빈 문자열 OK)
+  backgroundImageUrl?: string; // 카드 배경 이미지 (Storage public URL)
 };
 
 type InstagramInput = {
@@ -176,6 +177,7 @@ function cardsToSlides(cards: InstagramCard[]): Slide[] {
     total: cards.length,
     title: card.title.trim() || undefined,
     body: card.description.trim(),
+    backgroundImageUrl: card.backgroundImageUrl || undefined,
   }));
 }
 
@@ -188,6 +190,30 @@ function buildCaption(cards: InstagramCard[], override?: string): string {
     .filter(Boolean)
     .join("\n\n");
   return auto.slice(0, INSTAGRAM_MAX);
+}
+
+export type UploadResult = { url?: string; error?: string };
+
+/**
+ * 카드 배경 이미지 업로드. 클라이언트의 File을 FormData로 받아 Storage에 올리고
+ * public URL을 반환한다. 타입/용량 검증은 uploadBackgroundImage에서 수행.
+ */
+export async function uploadCardBackground(
+  formData: FormData
+): Promise<UploadResult> {
+  const file = formData.get("file");
+  if (!(file instanceof File)) {
+    return { error: "이미지 파일이 없습니다." };
+  }
+
+  const user = await requireUser();
+  try {
+    const url = await uploadBackgroundImage(user.id, file);
+    return { url };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "업로드 실패";
+    return { error: msg };
+  }
 }
 
 export async function publishToInstagram({

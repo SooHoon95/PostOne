@@ -9,8 +9,7 @@
 ## To Do
 
 ### 다음 구현 (계획: `docs/plans/2026-05-31-draft-image-schedule.md` · 순차)
-- [ ] ① 이미지 업로드 — 사용자 이미지 → IG 카드 배경 (Storage 재사용) · Phase 2
-- [ ] ② 임시저장 — drafts 테이블 자동저장/복원 (세션 끊겨도 복원, 서버) · Phase 1
+- [~] ② 임시저장 — drafts 테이블 자동저장/복원 (세션 끊겨도 복원, 서버) · Phase 1 ← 다음
 - [ ] ③ 예약 발행 — Supabase pg_cron + cron route, scheduled_at/status/재시도 · Phase 2
 
 ### 기타
@@ -23,6 +22,8 @@
 
 ## Done (최근)
 
+- [x] 이미지 업로드 — 사용자 이미지 → IG 카드 배경(카드별), Storage 재사용, 템플릿 어두운 오버레이, 타입/8MB 검증 · 2026-05-31
+- [x] 본문=인스타 캡션 통합 + 캡션란 제거 + 본문 카운터 인스타 추가 · 2026-05-31
 - [x] 랜딩 페이지 본격 구현 — 7섹션(히어로 카드뉴스 목업/기능/3스텝/본문→카드/CTA), 스크롤 리빌(useInView), 피드팡·Buffer 참고 · 2026-05-31
 - [x] 아키텍처 3그룹 재편 — (marketing)/(app)/(auth), 앱홈 /dashboard, middleware 인증 가드, error/not-found/loading + 페이지 metadata, dead code(editor·character-counter) 삭제, 랜딩 골격 · 2026-05-30
 - [x] 커스텀 디자인 시스템 — Badge/Alert/Separator/Skeleton/PageHeader/EmptyState/ChannelBadge(브랜드 SVG) + 홈/이력/연동/auth 적용, Linear·Vercel 패턴 · 2026-05-30
