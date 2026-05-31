@@ -9,8 +9,7 @@
 ## To Do
 
 ### 다음 구현 (계획: `docs/plans/2026-05-31-draft-image-schedule.md` · 순차)
-- [~] ② 임시저장 — drafts 테이블 자동저장/복원 (세션 끊겨도 복원, 서버) · Phase 1 ← 다음
-- [ ] ③ 예약 발행 — Supabase pg_cron + cron route, scheduled_at/status/재시도 · Phase 2
+- [ ] ③ 예약 발행 (+토큰갱신 cron 묶음) — Supabase pg_cron + cron route, scheduled_at/status/재시도 · Phase 2 ← 다음
 
 ### 기타
 - [ ] 보안 강화(리뷰 LOW) — upload.ts `server-only`+BUCKET 분리 · storage.objects RLS 정책 · 버킷 allowed_mime_types/file_size_limit · 업로드 경로 랜덤 suffix · refresh_token 만료 추적
@@ -24,6 +23,8 @@
 
 ## Done (최근)
 
+- [x] 임시저장(drafts) — 서버 저장, 디바운스(2.5s) 자동저장 + 복원 배너 + 발행 시 삭제, migration 0005, RLS · 2026-05-31
+- [x] 카드 설명 줄바꿈 — 이미 작동 확인(Textarea 입력 + trim 보존 + 템플릿 pre-wrap), 수정 불요 · 2026-05-31
 - [x] 토큰 갱신 — 3채널 refresh(재연동 없이), refreshConnection + 갱신 버튼, migration 0004, 보안리뷰 LOW · 2026-05-31
 - [x] 이미지 업로드 — 사용자 이미지 → IG 카드 배경(카드별), 템플릿 오버레이. **프로덕션 픽스: signed URL 직접 업로드**(Vercel/서버액션 body 제한 우회) · 2026-05-31
 - [x] 본문=인스타 캡션 통합 + 캡션란 제거 + 본문 카운터 인스타 추가 · 2026-05-31

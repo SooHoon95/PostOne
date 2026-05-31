@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import type {
   MultiPublishInput,
   UploadResult,
 } from "@/app/(app)/compose/actions";
+import type { DraftData } from "@/lib/drafts/actions";
 
 const BACKGROUND_MAX_BYTES = 8 * 1024 * 1024; // 8MB
 
@@ -46,14 +47,22 @@ const TEMPLATE_LABEL: Record<TemplateName, string> = {
 
 const ORDINAL = ["첫번째", "두번째", "세번째", "네번째", "다섯번째", "여섯번째", "일곱번째", "여덟번째", "아홉번째", "열번째"];
 
+type SaveStatus = "idle" | "saving" | "saved";
+
 export function MultiChannelEditor({
   publish,
   uploadBackground,
   connectedChannels,
+  initialDraft,
+  saveDraft,
+  deleteDraft,
 }: {
   publish: (input: MultiPublishInput) => Promise<{ results: ChannelResult[] }>;
   uploadBackground: (fileExt: string) => Promise<UploadResult>;
   connectedChannels: Record<Channel, boolean>;
+  initialDraft: DraftData | null;
+  saveDraft: (input: DraftData) => Promise<{ ok: boolean }>;
+  deleteDraft: () => Promise<void>;
 }) {
   const [selected, setSelected] = useState<Record<Channel, boolean>>({
     linkedin: connectedChannels.linkedin,
@@ -70,6 +79,11 @@ export function MultiChannelEditor({
   const [submitting, setSubmitting] = useState(false);
   const [results, setResults] = useState<ChannelResult[] | null>(null);
 
+  // 임시저장 복원 배너 (initialDraft가 있고 아직 선택 전이면 노출)
+  const [showRestoreBanner, setShowRestoreBanner] = useState(!!initialDraft);
+  // 자동저장 상태 표시
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+
   // 카드 배경 이미지 업로드 상태 (카드 인덱스별)
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
   const [uploadErrors, setUploadErrors] = useState<Record<number, string>>({});
@@ -84,6 +98,63 @@ export function MultiChannelEditor({
 
   const bodyChannelsSelected =
     selectedChannels.includes("linkedin") || selectedChannels.includes("threads");
+
+  // 복원 배너: 이어쓰기 — draft 내용으로 폼 채움 (연결된 채널만)
+  function continueDraft() {
+    if (!initialDraft) return;
+    setBody(initialDraft.body);
+    setCards(initialDraft.instagramCards);
+    setIgTemplate(initialDraft.instagramTemplate as TemplateName);
+    setSelected({
+      linkedin:
+        connectedChannels.linkedin &&
+        initialDraft.selectedChannels.includes("linkedin"),
+      threads:
+        connectedChannels.threads &&
+        initialDraft.selectedChannels.includes("threads"),
+      instagram:
+        connectedChannels.instagram &&
+        initialDraft.selectedChannels.includes("instagram"),
+    });
+    setShowRestoreBanner(false);
+  }
+
+  // 복원 배너: 새로 시작 — 서버 draft 삭제 + 빈 폼 유지
+  function discardDraft() {
+    setShowRestoreBanner(false);
+    void deleteDraft();
+  }
+
+  // 자동저장: 변경 시 디바운스 2.5초 후 saveDraft. 빈 상태면 스킵.
+  // 복원 배너가 떠 있는 동안(선택 전)에는 저장하지 않는다.
+  const isEmptyDraft =
+    body.trim().length === 0 &&
+    cards.length === 0 &&
+    selectedChannels.length === 0;
+
+  useEffect(() => {
+    if (showRestoreBanner) return;
+    if (isEmptyDraft) return;
+
+    setSaveStatus("saving");
+    const timer = setTimeout(async () => {
+      try {
+        const r = await saveDraft({
+          body,
+          instagramCards: cards,
+          instagramTemplate: igTemplate,
+          selectedChannels,
+        });
+        setSaveStatus(r.ok ? "saved" : "idle");
+      } catch {
+        // 자동저장 실패는 조용히 무시 (다음 변경에 재시도)
+        setSaveStatus("idle");
+      }
+    }, 2500);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [body, cards, igTemplate, selectedChannels, showRestoreBanner, isEmptyDraft]);
 
   function addCard() {
     if (cards.length >= 10) return;
@@ -161,6 +232,8 @@ export function MultiChannelEditor({
       if (r.results.every((x) => x.success)) {
         setBody("");
         setCards([]);
+        setSaveStatus("idle");
+        void deleteDraft();
       }
     } finally {
       setSubmitting(false);
@@ -172,6 +245,33 @@ export function MultiChannelEditor({
 
   return (
     <div className="space-y-6">
+      {/* 복원 배너 */}
+      {showRestoreBanner && (
+        <Card className="flex flex-col gap-3 border-primary/40 bg-muted p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              작성 중이던 글 있음
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              이전에 작성하던 내용을 이어서 작성할 수 있습니다.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button type="button" size="sm" onClick={continueDraft}>
+              이어쓰기
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={discardDraft}
+            >
+              새로 시작
+            </Button>
+          </div>
+        </Card>
+      )}
+
       {/* 채널 선택 */}
       <Card className="p-4">
         <p className="mb-3 text-sm font-medium">발행 채널</p>
@@ -362,9 +462,17 @@ export function MultiChannelEditor({
       )}
 
       <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">
-          선택된 채널 {selectedChannels.length}개에 발행됩니다
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-muted-foreground">
+            선택된 채널 {selectedChannels.length}개에 발행됩니다
+          </p>
+          {saveStatus === "saving" && (
+            <span className="text-xs text-muted-foreground">저장 중...</span>
+          )}
+          {saveStatus === "saved" && (
+            <span className="text-xs text-muted-foreground">저장됨 · 방금</span>
+          )}
+        </div>
         <Button onClick={onSubmit} disabled={!canSubmit}>
           {submitting ? "발행 중..." : `${selectedChannels.length}개 채널에 발행`}
         </Button>
