@@ -13,6 +13,8 @@
 - [ ] ③ 예약 발행 — Supabase pg_cron + cron route, scheduled_at/status/재시도 · Phase 2
 
 ### 기타
+- [ ] 보안 강화(리뷰 LOW) — upload.ts `server-only`+BUCKET 분리 · storage.objects RLS 정책 · 버킷 allowed_mime_types/file_size_limit · 업로드 경로 랜덤 suffix · refresh_token 만료 추적
+- [ ] 테스트 발행물 삭제 — LinkedIn 실발행분(urn:li:share:7466…)
 - [ ] 랜딩 후속 — 가격표(/pricing) 페이지, FAQ 섹션, 실제 제품 스크린샷 교체
 - [ ] 결제 연동 — Toss Payments + 4단계 요금제
 - [ ] 사용량 미터링 — 발행 수/AI 변환 카운트
@@ -22,7 +24,8 @@
 
 ## Done (최근)
 
-- [x] 이미지 업로드 — 사용자 이미지 → IG 카드 배경(카드별), Storage 재사용, 템플릿 어두운 오버레이, 타입/8MB 검증 · 2026-05-31
+- [x] 토큰 갱신 — 3채널 refresh(재연동 없이), refreshConnection + 갱신 버튼, migration 0004, 보안리뷰 LOW · 2026-05-31
+- [x] 이미지 업로드 — 사용자 이미지 → IG 카드 배경(카드별), 템플릿 오버레이. **프로덕션 픽스: signed URL 직접 업로드**(Vercel/서버액션 body 제한 우회) · 2026-05-31
 - [x] 본문=인스타 캡션 통합 + 캡션란 제거 + 본문 카운터 인스타 추가 · 2026-05-31
 - [x] 랜딩 페이지 본격 구현 — 7섹션(히어로 카드뉴스 목업/기능/3스텝/본문→카드/CTA), 스크롤 리빌(useInView), 피드팡·Buffer 참고 · 2026-05-31
 - [x] 아키텍처 3그룹 재편 — (marketing)/(app)/(auth), 앱홈 /dashboard, middleware 인증 가드, error/not-found/loading + 페이지 metadata, dead code(editor·character-counter) 삭제, 랜딩 골격 · 2026-05-30
