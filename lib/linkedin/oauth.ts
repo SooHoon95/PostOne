@@ -1,5 +1,9 @@
 import { randomBytes } from "crypto";
-import type { LinkedInTokenResponse, LinkedInUserInfo } from "./types";
+import type {
+  LinkedInTokenResponse,
+  LinkedInRefreshResponse,
+  LinkedInUserInfo,
+} from "./types";
 
 const AUTH_URL = "https://www.linkedin.com/oauth/v2/authorization";
 const TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken";
@@ -42,6 +46,34 @@ export async function exchangeCodeForToken(
     throw new Error(`LinkedIn token exchange failed: ${res.status} ${text}`);
   }
   return res.json();
+}
+
+export async function refreshToken(
+  refreshToken: string
+): Promise<{ accessToken: string; refreshToken?: string; expiresIn: number }> {
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+    client_id: process.env.LINKEDIN_CLIENT_ID!,
+    client_secret: process.env.LINKEDIN_CLIENT_SECRET!,
+  });
+
+  const res = await fetch(TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`LinkedIn token refresh failed: ${res.status} ${text}`);
+  }
+  const data: LinkedInRefreshResponse = await res.json();
+  return {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+    expiresIn: data.expires_in,
+  };
 }
 
 export async function fetchUserInfo(

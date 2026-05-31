@@ -8,6 +8,7 @@ import type {
 const AUTH_URL = "https://threads.net/oauth/authorize";
 const TOKEN_URL = "https://graph.threads.net/oauth/access_token";
 const LONG_LIVED_URL = "https://graph.threads.net/access_token";
+const REFRESH_URL = "https://graph.threads.net/refresh_access_token";
 const USERINFO_URL = "https://graph.threads.net/v1.0/me";
 const SCOPES = "threads_basic,threads_content_publish";
 
@@ -63,6 +64,22 @@ export async function exchangeForLongLivedToken(
     throw new Error(`Threads long-lived exchange failed: ${res.status} ${text}`);
   }
   return res.json();
+}
+
+export async function refreshLongLivedToken(
+  accessToken: string
+): Promise<{ accessToken: string; expiresIn: number }> {
+  const url = new URL(REFRESH_URL);
+  url.searchParams.set("grant_type", "th_refresh_token");
+  url.searchParams.set("access_token", accessToken);
+
+  const res = await fetch(url.toString());
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Threads token refresh failed: ${res.status} ${text}`);
+  }
+  const data: ThreadsLongLivedTokenResponse = await res.json();
+  return { accessToken: data.access_token, expiresIn: data.expires_in };
 }
 
 export async function fetchUserInfo(

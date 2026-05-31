@@ -10,6 +10,7 @@ import type {
 const AUTH_URL = "https://www.instagram.com/oauth/authorize";
 const TOKEN_URL = "https://api.instagram.com/oauth/access_token";
 const LONG_LIVED_URL = "https://graph.instagram.com/access_token";
+const REFRESH_URL = "https://graph.instagram.com/refresh_access_token";
 const USERINFO_URL = "https://graph.instagram.com/v21.0/me";
 
 const SCOPES = [
@@ -71,6 +72,22 @@ export async function exchangeForLongLivedToken(
     );
   }
   return res.json();
+}
+
+export async function refreshLongLivedToken(
+  accessToken: string
+): Promise<{ accessToken: string; expiresIn: number }> {
+  const url = new URL(REFRESH_URL);
+  url.searchParams.set("grant_type", "ig_refresh_token");
+  url.searchParams.set("access_token", accessToken);
+
+  const res = await fetch(url.toString());
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Instagram token refresh failed: ${res.status} ${text}`);
+  }
+  const data: InstagramLongTokenResponse = await res.json();
+  return { accessToken: data.access_token, expiresIn: data.expires_in };
 }
 
 export async function fetchUserInfo(

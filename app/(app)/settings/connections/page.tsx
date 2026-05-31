@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PageHeader } from "@/components/page-header";
 import { ChannelBadge, type Channel } from "@/components/channel-badge";
+import { RefreshTokenButton } from "@/components/refresh-token-button";
 import { CheckCircle2, AlertCircle } from "lucide-react";
 import type { Metadata } from "next";
 
@@ -83,11 +84,14 @@ function ChannelCard({
             </p>
           </div>
         </div>
-        <form action={startUrl} method="GET" className="shrink-0">
-          <Button type="submit" variant={connection ? "outline" : "default"}>
-            {connection ? "재연결" : "연결하기"}
-          </Button>
-        </form>
+        <div className="flex shrink-0 items-start gap-2">
+          {connection && <RefreshTokenButton channel={channel} />}
+          <form action={startUrl} method="GET">
+            <Button type="submit" variant={connection ? "outline" : "default"}>
+              {connection ? "재연결" : "연결하기"}
+            </Button>
+          </form>
+        </div>
       </div>
     </Card>
   );

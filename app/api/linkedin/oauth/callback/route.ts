@@ -46,6 +46,9 @@ export async function GET(request: Request) {
 
   const enc = encryptToken(token.access_token);
   const expiresAt = new Date(Date.now() + token.expires_in * 1000);
+  const refreshEnc = token.refresh_token
+    ? encryptToken(token.refresh_token)
+    : null;
 
   const supabase = createClient();
   const { error: dbError } = await supabase.from("linkedin_connections").upsert(
@@ -55,6 +58,9 @@ export async function GET(request: Request) {
       access_token_ciphertext: enc.ciphertext,
       access_token_iv: enc.iv,
       access_token_tag: enc.tag,
+      refresh_token_ciphertext: refreshEnc?.ciphertext ?? null,
+      refresh_token_iv: refreshEnc?.iv ?? null,
+      refresh_token_tag: refreshEnc?.tag ?? null,
       expires_at: expiresAt.toISOString(),
       scope: token.scope,
     },
