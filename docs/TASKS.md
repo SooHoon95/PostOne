@@ -23,6 +23,8 @@
 
 ## Done (최근)
 
+- [x] 발행이력 개편 — batch_id 본문별 묶음 + 채널 탭(전체/LinkedIn/Threads/IG), migration 0006 · 2026-05-31
+- [x] 저장글 관리 페이지(/drafts) — 본문 미리보기/이어쓰기/삭제 + nav 링크 · 2026-05-31
 - [x] 임시저장(drafts) — 서버 저장, 디바운스(2.5s) 자동저장 + 복원 배너 + 발행 시 삭제, migration 0005, RLS · 2026-05-31
 - [x] 카드 설명 줄바꿈 — 이미 작동 확인(Textarea 입력 + trim 보존 + 템플릿 pre-wrap), 수정 불요 · 2026-05-31
 - [x] 토큰 갱신 — 3채널 refresh(재연동 없이), refreshConnection + 갱신 버튼, migration 0004, 보안리뷰 LOW · 2026-05-31

@@ -16,7 +16,7 @@ import {
 import type { TemplateName } from "@/lib/cards/templates";
 import { revalidatePath } from "next/cache";
 
-type Input = { content: string };
+type Input = { content: string; batchId?: string };
 type Result = { urn?: string; error?: string };
 type MediaResult = { mediaId?: string; mediaUrls?: string[]; error?: string };
 
@@ -26,7 +26,7 @@ const INSTAGRAM_MAX = 2200;
 
 // ─── LinkedIn ───────────────────────────────────────────────────────────────
 
-export async function publishToLinkedIn({ content }: Input): Promise<Result> {
+export async function publishToLinkedIn({ content, batchId }: Input): Promise<Result> {
   const trimmed = content.trim();
   if (!trimmed) return { error: "내용을 입력해주세요." };
   if (trimmed.length > LINKEDIN_MAX) {
@@ -73,6 +73,7 @@ export async function publishToLinkedIn({ content }: Input): Promise<Result> {
         external_id: urn,
         status: "success",
         published_at: new Date().toISOString(),
+        batch_id: batchId ?? null,
       })
       .select()
       .single();
@@ -87,6 +88,7 @@ export async function publishToLinkedIn({ content }: Input): Promise<Result> {
       channel: "linkedin",
       status: "failed",
       error_message: msg,
+      batch_id: batchId ?? null,
     });
     return { error: msg };
   }
@@ -94,7 +96,7 @@ export async function publishToLinkedIn({ content }: Input): Promise<Result> {
 
 // ─── Threads ────────────────────────────────────────────────────────────────
 
-export async function publishToThreads({ content }: Input): Promise<Result> {
+export async function publishToThreads({ content, batchId }: Input): Promise<Result> {
   const trimmed = content.trim();
   if (!trimmed) return { error: "내용을 입력해주세요." };
   if (trimmed.length > THREADS_MAX) {
@@ -140,6 +142,7 @@ export async function publishToThreads({ content }: Input): Promise<Result> {
         external_id: mediaId,
         status: "success",
         published_at: new Date().toISOString(),
+        batch_id: batchId ?? null,
       });
 
     revalidatePath("/history");
@@ -152,6 +155,7 @@ export async function publishToThreads({ content }: Input): Promise<Result> {
       channel: "threads",
       status: "failed",
       error_message: msg,
+      batch_id: batchId ?? null,
     });
     return { error: msg };
   }
@@ -169,6 +173,7 @@ type InstagramInput = {
   cards: InstagramCard[];        // 빈 배열이면 1장 빈 카드
   template?: TemplateName;
   caption?: string;              // 게시물 캡션 (이미지 아래 텍스트)
+  batchId?: string;
 };
 
 function cardsToSlides(cards: InstagramCard[]): Slide[] {
@@ -233,6 +238,7 @@ export async function publishToInstagram({
   cards,
   template = "minimal-white",
   caption,
+  batchId,
 }: InstagramInput): Promise<MediaResult> {
   const user = await requireUser();
   const supabase = createClient();
@@ -295,6 +301,7 @@ export async function publishToInstagram({
       status: "success",
       media_urls: urls,
       published_at: new Date().toISOString(),
+      batch_id: batchId ?? null,
     });
 
     revalidatePath("/history");
@@ -307,6 +314,7 @@ export async function publishToInstagram({
       channel: "instagram",
       status: "failed",
       error_message: msg,
+      batch_id: batchId ?? null,
     });
     return { error: msg };
   }
@@ -345,9 +353,13 @@ export async function publishMulti(
 
   const results: ChannelResult[] = [];
 
+  // 이 멀티 발행 묶음을 식별하는 단일 batchId. 채널별 posts row가 동일 값으로
+  // 저장되어 발행 이력에서 본문 단위로 그룹핑된다. (Node 서버 런타임)
+  const batchId = crypto.randomUUID();
+
   for (const channel of channels) {
     if (channel === "linkedin") {
-      const r = await publishToLinkedIn({ content: body });
+      const r = await publishToLinkedIn({ content: body, batchId });
       results.push({
         channel,
         success: !r.error,
@@ -355,7 +367,7 @@ export async function publishMulti(
         error: r.error,
       });
     } else if (channel === "threads") {
-      const r = await publishToThreads({ content: body });
+      const r = await publishToThreads({ content: body, batchId });
       results.push({
         channel,
         success: !r.error,
@@ -369,6 +381,7 @@ export async function publishMulti(
         // 인스타 캡션 = 본문 (본문도 그대로 게시). 카드는 카드만 담당.
         // 본문 없으면 publishToInstagram이 카드 제목/설명으로 자동 생성.
         caption: body.trim() || undefined,
+        batchId,
       });
       results.push({
         channel,

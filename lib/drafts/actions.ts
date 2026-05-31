@@ -9,6 +9,7 @@ export type DraftData = {
   instagramCards: InstagramCard[];
   instagramTemplate: string;
   selectedChannels: Channel[];
+  updatedAt?: string | null;
 };
 
 type SaveDraftInput = {
@@ -43,7 +44,9 @@ export async function loadDraft(): Promise<DraftData | null> {
 
   const { data } = await supabase
     .from("drafts")
-    .select("body, instagram_cards, instagram_template, selected_channels")
+    .select(
+      "body, instagram_cards, instagram_template, selected_channels, updated_at"
+    )
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -54,6 +57,7 @@ export async function loadDraft(): Promise<DraftData | null> {
     instagramCards: (data.instagram_cards as InstagramCard[]) ?? [],
     instagramTemplate: data.instagram_template ?? "minimal-white",
     selectedChannels: (data.selected_channels as Channel[]) ?? [],
+    updatedAt: data.updated_at ?? null,
   };
 }
 

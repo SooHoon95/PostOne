@@ -11,6 +11,7 @@ export function DashboardNav({ email }: { email: string }) {
           Post<span className="text-primary">One</span>
         </Link>
         <Link href="/compose" className="text-sm text-muted-foreground hover:text-foreground">글쓰기</Link>
+        <Link href="/drafts" className="text-sm text-muted-foreground hover:text-foreground">저장된 글</Link>
         <Link href="/history" className="text-sm text-muted-foreground hover:text-foreground">발행 이력</Link>
         <Link href="/settings/connections" className="text-sm text-muted-foreground hover:text-foreground">채널 연동</Link>
       </div>

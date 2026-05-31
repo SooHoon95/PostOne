@@ -58,5 +58,6 @@ export type Post = {
   error_message: string | null;
   published_at: string | null;
   media_urls: string[] | null;
+  batch_id: string | null;
   created_at: string;
 };
