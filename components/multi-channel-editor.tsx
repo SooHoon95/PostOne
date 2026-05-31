@@ -18,6 +18,7 @@ type TemplateName = "minimal-white" | "gradient" | "photo-overlay";
 const LIMITS = {
   linkedin: 3000,
   threads: 500,
+  instagram: 2200,
 };
 
 const CHANNEL_LABEL: Record<Channel, string> = {
@@ -52,7 +53,6 @@ export function MultiChannelEditor({
   // Instagram 카드 상태
   const [cards, setCards] = useState<InstagramCard[]>([]);
   const [igTemplate, setIgTemplate] = useState<TemplateName>("minimal-white");
-  const [igCaption, setIgCaption] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
   const [results, setResults] = useState<ChannelResult[] | null>(null);
@@ -90,13 +90,11 @@ export function MultiChannelEditor({
         body,
         instagramCards: cards,
         instagramTemplate: igTemplate,
-        instagramCaption: igCaption || undefined,
       });
       setResults(r.results);
       if (r.results.every((x) => x.success)) {
         setBody("");
         setCards([]);
-        setIgCaption("");
       }
     } finally {
       setSubmitting(false);
@@ -144,7 +142,7 @@ export function MultiChannelEditor({
         <Card className="p-4 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium">본문</p>
-            <span className="text-xs text-muted-foreground">LinkedIn, Threads 발행용</span>
+            <span className="text-xs text-muted-foreground">LinkedIn · Threads 발행 / Instagram 캡션</span>
           </div>
           <Textarea
             value={body}
@@ -152,19 +150,26 @@ export function MultiChannelEditor({
             rows={10}
             placeholder="본문을 작성하세요..."
           />
-          <div className="flex gap-4 text-xs">
+          <div className="flex flex-wrap gap-4 text-xs">
             {selectedChannels.includes("linkedin") && (
               <span
-                className={body.length > LIMITS.linkedin ? "text-red-600" : "text-muted-foreground"}
+                className={body.length > LIMITS.linkedin ? "text-destructive" : "text-muted-foreground"}
               >
                 LinkedIn: {body.length} / {LIMITS.linkedin}
               </span>
             )}
             {selectedChannels.includes("threads") && (
               <span
-                className={body.length > LIMITS.threads ? "text-red-600" : "text-muted-foreground"}
+                className={body.length > LIMITS.threads ? "text-destructive" : "text-muted-foreground"}
               >
                 Threads: {body.length} / {LIMITS.threads}
+              </span>
+            )}
+            {selectedChannels.includes("instagram") && (
+              <span
+                className={body.length > LIMITS.instagram ? "text-destructive" : "text-muted-foreground"}
+              >
+                Instagram: {body.length} / {LIMITS.instagram}
               </span>
             )}
           </div>
@@ -245,19 +250,6 @@ export function MultiChannelEditor({
           >
             + 카드 추가 ({cards.length}/10)
           </Button>
-
-          {/* 캡션 */}
-          <div className="space-y-2">
-            <Label htmlFor="ig-caption">캡션 (선택, 게시물 아래 텍스트)</Label>
-            <Textarea
-              id="ig-caption"
-              value={igCaption}
-              onChange={(e) => setIgCaption(e.target.value)}
-              rows={3}
-              placeholder="비워두면 카드 내용으로 자동 생성됩니다."
-            />
-            <p className="text-xs text-muted-foreground">{igCaption.length} / 2200</p>
-          </div>
         </Card>
       )}
 

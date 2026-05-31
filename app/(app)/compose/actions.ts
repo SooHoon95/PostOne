@@ -282,7 +282,6 @@ export type MultiPublishInput = {
   body: string;                       // LinkedIn + Threads
   instagramCards: InstagramCard[];    // 빈 배열이면 빈 1장
   instagramTemplate?: TemplateName;
-  instagramCaption?: string;          // 게시물 캡션 (선택)
 };
 
 export type ChannelResult = {
@@ -328,7 +327,9 @@ export async function publishMulti(
       const r = await publishToInstagram({
         cards: instagramCards,
         template: input.instagramTemplate,
-        caption: input.instagramCaption,
+        // 인스타 캡션 = 본문 (본문도 그대로 게시). 카드는 카드만 담당.
+        // 본문 없으면 publishToInstagram이 카드 제목/설명으로 자동 생성.
+        caption: body.trim() || undefined,
       });
       results.push({
         channel,
