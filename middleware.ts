@@ -41,7 +41,11 @@ export async function middleware(request: NextRequest) {
   if (!user && isProtected) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
-  if (user && isAuthPage) {
+  // 이메일 미인증 세션은 보호 경로 접근 차단 (방어막 — 핵심 차단은 Supabase "Confirm email")
+  if (user && !user.email_confirmed_at && isProtected) {
+    return NextResponse.redirect(new URL("/verify-email", request.url));
+  }
+  if (user && user.email_confirmed_at && isAuthPage) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

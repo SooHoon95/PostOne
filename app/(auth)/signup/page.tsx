@@ -5,24 +5,29 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function SignupPage() {
-  const [message, setMessage] = useState<string | null>(null);
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(formData: FormData) {
-    setMessage(null);
     setError(null);
+    setSubmitting(true);
+    const email = (formData.get("email") as string).trim();
     const result = await signUp({
-      email: formData.get("email") as string,
+      email,
       password: formData.get("password") as string,
     });
     if (result.error) {
       setError(result.error);
-    } else {
-      setMessage("확인 이메일을 발송했습니다. 메일함을 확인해주세요.");
+      setSubmitting(false);
+      return;
     }
+    // 가입 직후엔 세션이 없다(이메일 인증 대기). 인증 안내 페이지로 이동.
+    router.push(`/verify-email?email=${encodeURIComponent(email)}`);
   }
 
   return (
@@ -48,8 +53,9 @@ export default function SignupPage() {
           <Input id="password" name="password" type="password" required minLength={8} />
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
-        {message && <p className="text-sm text-success">{message}</p>}
-        <Button type="submit" className="w-full">가입</Button>
+        <Button type="submit" className="w-full" disabled={submitting}>
+          {submitting ? "가입 중..." : "가입"}
+        </Button>
       </form>
       <p className="text-sm text-muted-foreground">
         이미 계정이 있으신가요? <Link href="/login" className="underline">로그인</Link>

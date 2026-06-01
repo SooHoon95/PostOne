@@ -8,9 +8,14 @@ import { REMEMBER_COOKIE, REMEMBER_MAX_AGE } from "@/lib/supabase/cookie-options
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type Credentials = { email: string; password: string };
-type ActionResult = { error?: string };
+type ActionResult = { error?: string; code?: string };
+type SignUpResult = { error?: string; ok?: boolean };
 
-export async function signUp({ email, password }: Credentials): Promise<ActionResult> {
+function appUrl(): string {
+  return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+}
+
+export async function signUp({ email, password }: Credentials): Promise<SignUpResult> {
   if (!EMAIL_RE.test(email)) return { error: "이메일 형식이 올바르지 않습니다." };
   if (password.length < 8) return { error: "비밀번호는 8자 이상이어야 합니다." };
 
@@ -19,8 +24,29 @@ export async function signUp({ email, password }: Credentials): Promise<ActionRe
     email,
     password,
     options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/auth/callback`,
+      emailRedirectTo: `${appUrl()}/auth/callback`,
     },
+  });
+  if (error) return { error: error.message };
+
+  // Supabase "Confirm email"이 켜져 있으면 여기서 세션은 발급되지 않고 확인 메일만
+  // 발송된다. 이미 가입된 이메일이어도 Supabase가 동일한 성공 응답을 주므로(계정
+  // 열거 방지) 항상 같은 "메일 확인" 흐름으로 응답한다.
+  return { ok: true };
+}
+
+export async function resendConfirmation({
+  email,
+}: {
+  email: string;
+}): Promise<ActionResult> {
+  if (!EMAIL_RE.test(email)) return { error: "이메일 형식이 올바르지 않습니다." };
+
+  const supabase = createClient();
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email,
+    options: { emailRedirectTo: `${appUrl()}/auth/callback` },
   });
   if (error) return { error: error.message };
   return {};
@@ -46,6 +72,15 @@ export async function signIn({
   if (error) {
     // 인증 실패 시 플래그를 남기면 다음 요청에서 기존 세션 만료가 연장될 수 있다.
     cookieStore.delete(REMEMBER_COOKIE);
+
+    const msg = (error.message ?? "").toLowerCase();
+    const code = (error as { code?: string }).code;
+    if (code === "email_not_confirmed" || msg.includes("not confirmed")) {
+      return {
+        error: "이메일 인증이 필요합니다. 메일함에서 인증 링크를 확인해주세요.",
+        code: "email_not_confirmed",
+      };
+    }
     return { error: "이메일 또는 비밀번호가 올바르지 않습니다." };
   }
   redirect("/dashboard");
