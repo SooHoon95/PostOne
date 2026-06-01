@@ -3,15 +3,15 @@ import { createClient as createServiceClient } from "@supabase/supabase-js";
 export const BUCKET = "cards";
 
 /**
- * Upload PNG buffers to Supabase Storage and return public URLs.
+ * Upload generated card images (JPEG) to Supabase Storage and return public URLs.
  *
  * Uses the service_role key to bypass RLS on the storage bucket — the bucket
  * must be created as `public` so the returned URLs are accessible to Instagram's
  * CDN crawler.
  */
-export async function uploadCardPngs(
+export async function uploadCardImages(
   userId: string,
-  pngs: Buffer[]
+  images: Buffer[]
 ): Promise<string[]> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -24,10 +24,10 @@ export async function uploadCardPngs(
 
   const ts = Date.now();
   const urls: string[] = [];
-  for (let i = 0; i < pngs.length; i++) {
-    const path = `${userId}/${ts}-${i}.png`;
-    const { error } = await admin.storage.from(BUCKET).upload(path, pngs[i], {
-      contentType: "image/png",
+  for (let i = 0; i < images.length; i++) {
+    const path = `${userId}/${ts}-${i}.jpg`;
+    const { error } = await admin.storage.from(BUCKET).upload(path, images[i], {
+      contentType: "image/jpeg",
       upsert: true,
     });
     if (error) throw new Error(`Card upload failed: ${error.message}`);

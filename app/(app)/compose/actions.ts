@@ -7,9 +7,9 @@ import { publishPost as linkedInPublish } from "@/lib/linkedin/client";
 import { publishPost as threadsPublish } from "@/lib/threads/client";
 import { publishSingle, publishCarousel } from "@/lib/instagram/client";
 import type { Slide } from "@/lib/cards/text-split";
-import { renderSlidesToPngs } from "@/lib/cards/generator";
+import { renderSlidesToImages } from "@/lib/cards/generator";
 import {
-  uploadCardPngs,
+  uploadCardImages,
   createBackgroundUploadUrl,
   BACKGROUND_ALLOWED_EXTS,
 } from "@/lib/cards/upload";
@@ -260,8 +260,8 @@ export async function publishToInstagram({
   const storedBody = (body ?? "").trim();
 
   try {
-    const pngs = await renderSlidesToPngs(slides, template);
-    const urls = await uploadCardPngs(user.id, pngs);
+    const images = await renderSlidesToImages(slides, template);
+    const urls = await uploadCardImages(user.id, images);
 
     let mediaId: string;
     if (urls.length === 1) {
