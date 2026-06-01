@@ -39,11 +39,14 @@ export default function MarketingLayout({
         <div className="container flex flex-col items-center justify-between gap-3 py-6 text-sm text-muted-foreground sm:flex-row">
           <p>© {new Date().getFullYear()} PostOne</p>
           <nav className="flex items-center gap-4">
+            <Link href="/privacy" className="hover:text-foreground">
+              개인정보처리방침
+            </Link>
+            <Link href="/terms" className="hover:text-foreground">
+              이용약관
+            </Link>
             <Link href="/login" className="hover:text-foreground">
               로그인
-            </Link>
-            <Link href="/signup" className="hover:text-foreground">
-              무료로 시작
             </Link>
           </nav>
         </div>
