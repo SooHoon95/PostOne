@@ -76,7 +76,8 @@ export async function verifyEmailOtp({
   if (error) {
     return { error: "코드가 올바르지 않거나 만료되었습니다. 다시 시도해주세요." };
   }
-  redirect("/dashboard");
+  // 가입 인증 직후엔 환영 페이지로 → "시작하기"에서 대시보드 진입
+  redirect("/welcome");
 }
 
 export async function signIn({

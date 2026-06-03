@@ -121,7 +121,7 @@ describe("email-verification auth actions", () => {
     const { verifyEmailOtp } = await import("@/lib/auth/actions");
     await expect(
       verifyEmailOtp({ email: "a@b.com", token: "06208968" })
-    ).rejects.toThrow("redirect:/dashboard");
+    ).rejects.toThrow("redirect:/welcome");
     expect(verifyOtpMock).toHaveBeenCalledWith(
       expect.objectContaining({ email: "a@b.com", token: "06208968", type: "email" })
     );
