@@ -4,6 +4,7 @@ import { REMEMBER_COOKIE } from "@/lib/supabase/cookie-options";
 const signUpMock = vi.fn();
 const signInWithPasswordMock = vi.fn();
 const resendMock = vi.fn();
+const verifyOtpMock = vi.fn();
 const cookieSetMock = vi.fn();
 const cookieDeleteMock = vi.fn();
 
@@ -13,6 +14,7 @@ vi.mock("@/lib/supabase/server", () => ({
       signUp: signUpMock,
       signInWithPassword: signInWithPasswordMock,
       resend: resendMock,
+      verifyOtp: verifyOtpMock,
     },
   }),
 }));
@@ -32,6 +34,7 @@ describe("email-verification auth actions", () => {
     signUpMock.mockReset();
     signInWithPasswordMock.mockReset();
     resendMock.mockReset();
+    verifyOtpMock.mockReset();
     cookieSetMock.mockReset();
     cookieDeleteMock.mockReset();
   });
@@ -96,6 +99,39 @@ describe("email-verification auth actions", () => {
     const { resendConfirmation } = await import("@/lib/auth/actions");
     const r = await resendConfirmation({ email: "a@b.com" });
     expect(r.error).toMatch(/rate limit/);
+  });
+
+  // ── verifyEmailOtp ──────────────────────────────────────────────────────
+  it("verifyEmailOtp rejects an invalid email", async () => {
+    const { verifyEmailOtp } = await import("@/lib/auth/actions");
+    const r = await verifyEmailOtp({ email: "bad", token: "123456" });
+    expect(r?.error).toMatch(/이메일/);
+    expect(verifyOtpMock).not.toHaveBeenCalled();
+  });
+
+  it("verifyEmailOtp rejects a non-numeric / empty code", async () => {
+    const { verifyEmailOtp } = await import("@/lib/auth/actions");
+    const r = await verifyEmailOtp({ email: "a@b.com", token: "abc" });
+    expect(r?.error).toMatch(/코드/);
+    expect(verifyOtpMock).not.toHaveBeenCalled();
+  });
+
+  it("verifyEmailOtp calls verifyOtp(type:email) and redirects on success", async () => {
+    verifyOtpMock.mockResolvedValue({ data: { session: {} }, error: null });
+    const { verifyEmailOtp } = await import("@/lib/auth/actions");
+    await expect(
+      verifyEmailOtp({ email: "a@b.com", token: "06208968" })
+    ).rejects.toThrow("redirect:/dashboard");
+    expect(verifyOtpMock).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "a@b.com", token: "06208968", type: "email" })
+    );
+  });
+
+  it("verifyEmailOtp returns a friendly error on bad/expired code", async () => {
+    verifyOtpMock.mockResolvedValue({ error: { message: "Token has expired" } });
+    const { verifyEmailOtp } = await import("@/lib/auth/actions");
+    const r = await verifyEmailOtp({ email: "a@b.com", token: "000000" });
+    expect(r?.error).toMatch(/코드가 올바르지 않거나 만료/);
   });
 
   // ── signIn ──────────────────────────────────────────────────────────────

@@ -52,6 +52,33 @@ export async function resendConfirmation({
   return {};
 }
 
+// 메일로 받은 숫자 인증 코드(OTP)로 가입 확인. 성공 시 세션이 발급되고 대시보드로
+// 이동한다. (Supabase 이메일 템플릿이 {{ .Token }}을 보내도록 설정되어 있어야 함)
+export async function verifyEmailOtp({
+  email,
+  token,
+}: {
+  email: string;
+  token: string;
+}): Promise<ActionResult> {
+  if (!EMAIL_RE.test(email)) return { error: "이메일 형식이 올바르지 않습니다." };
+  const code = token.trim();
+  if (!/^\d{4,10}$/.test(code)) {
+    return { error: "인증 코드를 정확히 입력해주세요." };
+  }
+
+  const supabase = createClient();
+  const { error } = await supabase.auth.verifyOtp({
+    email,
+    token: code,
+    type: "email",
+  });
+  if (error) {
+    return { error: "코드가 올바르지 않거나 만료되었습니다. 다시 시도해주세요." };
+  }
+  redirect("/dashboard");
+}
+
 export async function signIn({
   email,
   password,
