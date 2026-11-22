@@ -17,6 +17,8 @@ import type {
 } from "@/app/(app)/compose/actions";
 import type { DraftData, DraftReddit } from "@/lib/drafts/actions";
 import { isValidSubreddit, normalizeSubreddit } from "@/lib/reddit/subreddit";
+import { AiAdaptPanel, type AiApplyPayload } from "@/components/ai-adapt-panel";
+import type { AIChannel } from "@/lib/ai/types";
 
 const BACKGROUND_MAX_BYTES = 8 * 1024 * 1024; // 8MB
 
@@ -110,6 +112,11 @@ export function MultiChannelEditor({
 
   const [body, setBody] = useState(restore ? restore.body : "");
 
+  // AI 채널별 변환 결과 — 채널별 본문 오버라이드(없으면 body 폴백).
+  const [channelContents, setChannelContents] = useState<
+    Partial<Record<Channel, string>>
+  >({});
+
   // Reddit 입력 (서브레딧·제목은 필수, 링크·플레어는 선택)
   const [reddit, setReddit] = useState<DraftReddit>(
     restore ? restore.reddit : EMPTY_REDDIT
@@ -147,11 +154,42 @@ export function MultiChannelEditor({
     [selected, connectedChannels]
   );
 
-  const bodyChannelsSelected =
-    selectedChannels.includes("linkedin") ||
-    selectedChannels.includes("threads") ||
-    // Reddit 링크 글은 본문이 없어도 되므로 self 글일 때만 본문 필수
-    (selectedChannels.includes("reddit") && !reddit.link.trim());
+  // AI 변환 대상: 선택된 발행 채널 + Peerlist(3단계 익스텐션용 초안)
+  const aiChannels = useMemo<AIChannel[]>(() => {
+    const list: AIChannel[] = [...selectedChannels];
+    if (!list.includes("peerlist")) list.push("peerlist");
+    return list;
+  }, [selectedChannels]);
+
+  // 채널별 본문: AI 변환본 우선, 없으면 공통 body
+  function contentFor(channel: Channel): string {
+    return (channelContents[channel] ?? "").trim() || body;
+  }
+
+  const hasTailoredContent = selectedChannels.some((c) =>
+    (channelContents[c] ?? "").trim()
+  );
+
+  function applyAiResult(payload: AiApplyPayload) {
+    setChannelContents(payload.channelContents);
+    if (payload.instagram) {
+      // 기존 카드에 올린 배경 이미지는 순서대로 유지한다.
+      setCards((prev) =>
+        payload.instagram!.slides.map((slide, i) => ({
+          title: slide.title,
+          description: slide.description,
+          backgroundImageUrl: prev[i]?.backgroundImageUrl,
+        }))
+      );
+    }
+    if (payload.redditTitle) {
+      setReddit((prev) => ({ ...prev, title: payload.redditTitle ?? prev.title }));
+    }
+  }
+
+  function clearTailoredContent() {
+    setChannelContents({});
+  }
 
   function updateReddit(patch: Partial<DraftReddit>) {
     setReddit((prev) => ({ ...prev, ...patch }));
@@ -163,6 +201,8 @@ export function MultiChannelEditor({
     setBody(initialDraft.body);
     setCards(initialDraft.instagramCards);
     setIgTemplate(initialDraft.instagramTemplate as TemplateName);
+    // 이전 글의 AI 변환본이 새 글로 새지 않게 비운다.
+    setChannelContents({});
     setSelected({
       linkedin:
         connectedChannels.linkedin &&
@@ -184,6 +224,7 @@ export function MultiChannelEditor({
   // 복원 배너: 새로 시작 — 서버 draft 삭제 + 빈 폼 유지
   function discardDraft() {
     setShowRestoreBanner(false);
+    setChannelContents({});
     void deleteDraft();
   }
 
@@ -326,6 +367,12 @@ export function MultiChannelEditor({
     setSubmitting(true);
     setResults(null);
     try {
+      const tailored: Partial<Record<Channel, string>> = {};
+      for (const channel of selectedChannels) {
+        const value = (channelContents[channel] ?? "").trim();
+        if (value) tailored[channel] = value;
+      }
+
       const r = await publish({
         channels: selectedChannels,
         body,
@@ -337,6 +384,7 @@ export function MultiChannelEditor({
           link: reddit.link.trim() || undefined,
           flairId: reddit.flairId || undefined,
         },
+        channelContents: Object.keys(tailored).length > 0 ? tailored : undefined,
       });
       setResults(r.results);
       if (r.results.every((x) => x.success)) {
@@ -344,6 +392,7 @@ export function MultiChannelEditor({
         setCards([]);
         setReddit(EMPTY_REDDIT);
         setFlairs([]);
+        setChannelContents({});
         setSaveStatus("idle");
         void deleteDraft();
       }
@@ -356,11 +405,17 @@ export function MultiChannelEditor({
     !selectedChannels.includes("reddit") ||
     (isValidSubreddit(reddit.subreddit) && reddit.title.trim().length > 0);
 
+  // Reddit 링크 글은 본문이 없어도 되므로 링크가 있으면 본문 검사에서 제외
+  const channelContentReady = selectedChannels.every((channel) => {
+    if (channel === "reddit" && reddit.link.trim()) return true;
+    return contentFor(channel).trim().length > 0;
+  });
+
   const canSubmit =
     !submitting &&
     selectedChannels.length > 0 &&
     redditReady &&
-    (bodyChannelsSelected ? body.trim().length > 0 : true);
+    channelContentReady;
 
   return (
     <div className="space-y-6">
@@ -424,8 +479,24 @@ export function MultiChannelEditor({
 
       {/* 본문 (항상 표시) */}
       <Card className="p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-medium">본문 (LinkedIn · Threads · Reddit 텍스트 글 / Instagram 캡션)</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-medium">
+            본문 (LinkedIn · Threads · Reddit 텍스트 글 / Instagram 캡션)
+          </p>
+          {hasTailoredContent && (
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                채널별 맞춤 본문 적용
+              </span>
+              <button
+                type="button"
+                onClick={clearTailoredContent}
+                className="text-xs text-muted-foreground hover:underline"
+              >
+                해제
+              </button>
+            </div>
+          )}
         </div>
         <Textarea
           value={body}
@@ -436,34 +507,42 @@ export function MultiChannelEditor({
         <div className="flex flex-wrap gap-4 text-xs">
           {selectedChannels.includes("linkedin") && (
             <span
-              className={body.length > LIMITS.linkedin ? "text-destructive" : "text-muted-foreground"}
+              className={contentFor("linkedin").length > LIMITS.linkedin ? "text-destructive" : "text-muted-foreground"}
             >
-              LinkedIn: {body.length} / {LIMITS.linkedin}
+              LinkedIn: {contentFor("linkedin").length} / {LIMITS.linkedin}
             </span>
           )}
           {selectedChannels.includes("threads") && (
             <span
-              className={body.length > LIMITS.threads ? "text-destructive" : "text-muted-foreground"}
+              className={contentFor("threads").length > LIMITS.threads ? "text-destructive" : "text-muted-foreground"}
             >
-              Threads: {body.length} / {LIMITS.threads}
+              Threads: {contentFor("threads").length} / {LIMITS.threads}
             </span>
           )}
           {selectedChannels.includes("instagram") && (
             <span
-              className={body.length > LIMITS.instagram ? "text-destructive" : "text-muted-foreground"}
+              className={contentFor("instagram").length > LIMITS.instagram ? "text-destructive" : "text-muted-foreground"}
             >
-              Instagram: {body.length} / {LIMITS.instagram}
+              Instagram: {contentFor("instagram").length} / {LIMITS.instagram}
             </span>
           )}
           {selectedChannels.includes("reddit") && !reddit.link.trim() && (
             <span
-              className={body.length > LIMITS.reddit ? "text-destructive" : "text-muted-foreground"}
+              className={contentFor("reddit").length > LIMITS.reddit ? "text-destructive" : "text-muted-foreground"}
             >
-              Reddit: {body.length} / {LIMITS.reddit}
+              Reddit: {contentFor("reddit").length} / {LIMITS.reddit}
             </span>
           )}
         </div>
       </Card>
+
+      {/* AI 채널별 변환 */}
+      <AiAdaptPanel
+        sourceText={body}
+        channels={aiChannels}
+        subreddit={reddit.subreddit}
+        onApply={applyAiResult}
+      />
 
       {/* Reddit 입력 */}
       {selected.reddit && connectedChannels.reddit && (
@@ -476,6 +555,12 @@ export function MultiChannelEditor({
               </span>
             ) : null}
           </div>
+
+          {(channelContents.reddit ?? "").trim().length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              AI 맞춤 본문 사용 중 — 본문란 대신 발행
+            </p>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">

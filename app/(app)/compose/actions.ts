@@ -439,10 +439,15 @@ export type RedditPublishInput = {
 
 export type MultiPublishInput = {
   channels: Channel[];
-  body: string;                       // LinkedIn + Threads + Reddit(self) 본문
+  body: string;                       // 공통 본문 (채널별 본문이 없을 때의 폴백)
   instagramCards: InstagramCard[];    // 빈 배열이면 빈 1장
   instagramTemplate?: TemplateName;
   reddit?: RedditPublishInput;        // Reddit 선택 시 서브레딧/제목(필수)
+  /**
+   * 채널별 맞춤 본문(AI 채널별 변환 결과). 해당 채널 키가 없거나 빈 문자열이면
+   * body로 폴백한다 — 기존 호출부(body만 전달)와 호환.
+   */
+  channelContents?: Partial<Record<Channel, string>>;
 };
 
 export type ChannelResult = {
@@ -468,13 +473,20 @@ export async function publishMulti(
 
   const results: ChannelResult[] = [];
 
+  // 채널별 맞춤 본문 → 없으면 공통 body. 발행 직전에 trim해 빈 값은 폴백 처리.
+  const contentFor = (channel: Channel): string => {
+    const override = input.channelContents?.[channel];
+    const tailored = typeof override === "string" ? override.trim() : "";
+    return tailored || body;
+  };
+
   // 이 멀티 발행 묶음을 식별하는 단일 batchId. 채널별 posts row가 동일 값으로
   // 저장되어 발행 이력에서 본문 단위로 그룹핑된다. (Node 서버 런타임)
   const batchId = crypto.randomUUID();
 
   for (const channel of channels) {
     if (channel === "linkedin") {
-      const r = await publishToLinkedIn({ content: body, batchId });
+      const r = await publishToLinkedIn({ content: contentFor("linkedin"), batchId });
       results.push({
         channel,
         success: !r.error,
@@ -482,7 +494,7 @@ export async function publishMulti(
         error: r.error,
       });
     } else if (channel === "threads") {
-      const r = await publishToThreads({ content: body, batchId });
+      const r = await publishToThreads({ content: contentFor("threads"), batchId });
       results.push({
         channel,
         success: !r.error,
@@ -491,7 +503,7 @@ export async function publishMulti(
       });
     } else if (channel === "reddit") {
       const r = await publishToReddit({
-        content: body,
+        content: contentFor("reddit"),
         batchId,
         subreddit: input.reddit?.subreddit ?? "",
         title: input.reddit?.title ?? "",
@@ -510,7 +522,7 @@ export async function publishMulti(
         cards: instagramCards,
         template: input.instagramTemplate,
         // 본문 = 캡션 = 기록용 content. 카드 텍스트는 캡션이 아니다.
-        body,
+        body: contentFor("instagram"),
         batchId,
       });
       results.push({
