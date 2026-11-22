@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { usePeerlistExtension } from "@/lib/hooks/use-peerlist-extension";
 import {
   CHANNEL_LIMITS,
   type AdaptedChannelContent,
@@ -91,8 +92,19 @@ export function AiAdaptPanel({
   );
   const [applied, setApplied] = useState(false);
   const [copied, setCopied] = useState(false);
+  const peerlistExtension = usePeerlistExtension();
+  const [peerlistSent, setPeerlistSent] = useState<
+    "idle" | "sending" | "sent"
+  >("idle");
+  const [peerlistNotice, setPeerlistNotice] = useState<string | null>(null);
 
   const canRun = sourceText.trim().length > 0 && channels.length > 0;
+  const extensionLabel =
+    peerlistExtension.state === "ready"
+      ? "확장 연결됨"
+      : peerlistExtension.state === "checking"
+        ? "확장 확인 중"
+        : "확장 미설치 — 복사로 대체";
 
   async function run() {
     if (!canRun) return;
@@ -194,18 +206,54 @@ export function AiAdaptPanel({
     setApplied(true);
   }
 
-  async function copyPeerlist(text: string) {
+  async function copyToClipboard(text: string): Promise<boolean> {
     if (typeof navigator === "undefined" || !navigator.clipboard) {
       setError("클립보드를 사용할 수 없습니다. 본문을 직접 선택해 복사해주세요.");
-      return;
+      return false;
     }
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
+      return true;
     } catch {
       setError("복사에 실패했습니다. 본문을 직접 선택해 복사해주세요.");
+      return false;
     }
+  }
+
+  async function copyPeerlist(text: string) {
+    await copyToClipboard(text);
+  }
+
+  function resetPeerlistSendState() {
+    setPeerlistSent("idle");
+    setPeerlistNotice(null);
+  }
+
+  /**
+   * 익스텐션이 설치돼 있으면 초안을 chrome.storage로 보내고, 없으면
+   * 클립보드 복사로 대체한다(설치 안내는 문구로).
+   */
+  async function sendPeerlist(text: string) {
+    if (!text.trim()) return;
+    setPeerlistSent("sending");
+    setPeerlistNotice(null);
+    const result = await peerlistExtension.sendDraft(text);
+    if (result.ok) {
+      setPeerlistSent("sent");
+      setPeerlistNotice(
+        "확장에 저장됨 — 툴바 PostOne 아이콘에서 '작성창에 채우기'"
+      );
+      return;
+    }
+    setPeerlistSent("idle");
+    const copiedNow = await copyToClipboard(text);
+    setPeerlistNotice(
+      copiedNow
+        ? "확장 미연결 — 초안을 복사했습니다. Peerlist에 붙여넣어 주세요."
+        : "확장 미연결, 복사도 실패 — 본문을 직접 선택해 복사해 주세요."
+    );
   }
 
   function renderBlock(channel: AIChannel) {
@@ -354,25 +402,43 @@ export function AiAdaptPanel({
       const peerlist = draft.peerlist;
       return (
         <div key={channel} className="space-y-2 rounded-md border border-border p-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <p className={cn("text-xs font-medium", ACCENT[channel])}>Peerlist</p>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => void copyPeerlist(peerlist.content)}
-            >
-              {copied ? "복사됨" : "Peerlist 초안 복사"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => void sendPeerlist(peerlist.content)}
+                disabled={peerlistSent === "sending"}
+              >
+                {peerlistSent === "sending"
+                  ? "전송 중..."
+                  : peerlistSent === "sent"
+                    ? "확장으로 전송됨"
+                    : "Peerlist 확장으로 전송"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void copyPeerlist(peerlist.content)}
+              >
+                {copied ? "복사됨" : "Peerlist 초안 복사"}
+              </Button>
+            </div>
           </div>
           <Textarea
             aria-label="Peerlist 초안"
             value={peerlist.content}
             rows={5}
-            onChange={(e) => setText("peerlist", e.target.value)}
+            onChange={(e) => {
+              setText("peerlist", e.target.value);
+              resetPeerlistSendState();
+            }}
           />
-          <p className="text-xs text-muted-foreground">
-            Peerlist는 3단계 크롬 익스텐션으로 발행 — 지금은 복사용 초안
+          <p className="text-xs text-muted-foreground" role="status">
+            {peerlistNotice ??
+              `${extensionLabel} · 크롬 익스텐션 설치 후 작성창에 한 번에 채우기`}
           </p>
         </div>
       );
