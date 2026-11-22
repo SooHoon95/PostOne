@@ -45,6 +45,7 @@
     --channel-threads: 0 0% 0%;
     --channel-instagram: 326 78% 53%;
     --channel-reddit: 16 100% 50%;
+    --channel-peerlist: 145 100% 33%;
 
     --radius: 0.625rem;
   }
@@ -83,6 +84,7 @@
     --channel-threads: 0 0% 92%;
     --channel-instagram: 326 78% 63%;
     --channel-reddit: 16 100% 62%;
+    --channel-peerlist: 145 80% 55%;
   }
 }
 

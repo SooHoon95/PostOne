@@ -60,6 +60,7 @@ const config: Config = {
           threads: "hsl(var(--channel-threads) / <alpha-value>)",
           instagram: "hsl(var(--channel-instagram) / <alpha-value>)",
           reddit: "hsl(var(--channel-reddit) / <alpha-value>)",
+          peerlist: "hsl(var(--channel-peerlist) / <alpha-value>)",
         },
       },
       borderRadius: {
