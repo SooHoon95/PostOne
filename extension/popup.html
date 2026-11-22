@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PostOne Peerlist</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div class="title">
+        <span class="brand">PostOne</span>
+        <span class="divider">·</span>
+        <span class="channel">Peerlist</span>
+      </div>
+      <span id="extension-state" class="badge" data-state="unknown">확인 중</span>
+    </header>
+
+    <main class="main">
+      <label class="field-label" for="draft">Peerlist 초안</label>
+      <textarea
+        id="draft"
+        class="draft"
+        rows="9"
+        spellcheck="false"
+        placeholder="PostOne에서 AI 변환 후 'Peerlist 확장으로 전송'을 누르면 여기에 표시됩니다"
+      ></textarea>
+
+      <div class="meta">
+        <span id="updated">최근 수신 없음</span>
+        <span id="count">0 / 700</span>
+      </div>
+
+      <p id="status" class="status" role="status"></p>
+
+      <div class="actions">
+        <button id="fill" class="button primary" type="button">작성창에 채우기</button>
+        <button id="open" class="button secondary" type="button">Peerlist 열기</button>
+      </div>
+
+      <p class="hint">작성창만 채웁니다 — Peerlist에서 확인 후 직접 게시</p>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

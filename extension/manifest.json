@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "PostOne Peerlist Bridge",
+  "version": "1.0.0",
+  "description": "PostOne AI 초안을 Peerlist 작성창에 채우는 브리지",
+  "permissions": ["storage", "activeTab", "tabs"],
+  "host_permissions": [
+    "https://peerlist.io/*",
+    "https://postone-sigma.vercel.app/*",
+    "http://localhost:3000/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "PostOne Peerlist"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://postone-sigma.vercel.app/*",
+        "http://localhost:3000/*"
+      ],
+      "js": ["content-postone.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://peerlist.io/*"],
+      "js": ["content-peerlist.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
