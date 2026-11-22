@@ -173,10 +173,13 @@ export function MultiChannelEditor({
   function applyAiResult(payload: AiApplyPayload) {
     setChannelContents(payload.channelContents);
     if (payload.instagram) {
+      const { cardTitle, slides } = payload.instagram;
       // 기존 카드에 올린 배경 이미지는 순서대로 유지한다.
       setCards((prev) =>
-        payload.instagram!.slides.map((slide, i) => ({
-          title: slide.title,
+        slides.map((slide, i) => ({
+          // 카드 생성기에는 별도 표지 필드가 없다 — 1번 카드 제목이 비었을 때만
+          // 표지 제목을 넣고, 모델이 준 슬라이드 제목은 덮어쓰지 않는다.
+          title: i === 0 && !slide.title.trim() ? cardTitle : slide.title,
           description: slide.description,
           backgroundImageUrl: prev[i]?.backgroundImageUrl,
         }))

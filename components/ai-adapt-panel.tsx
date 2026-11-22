@@ -271,7 +271,9 @@ export function AiAdaptPanel({
           </div>
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">카드 제목</p>
+              <p className="text-xs text-muted-foreground">
+                카드 표지 제목 (1번 카드 제목이 비었을 때 사용)
+              </p>
               <Counter
                 length={ig.cardTitle.length}
                 max={CHANNEL_LIMITS.instagram.cardTitle}
