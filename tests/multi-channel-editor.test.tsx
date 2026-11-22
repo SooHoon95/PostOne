@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { MultiChannelEditor } from "@/components/multi-channel-editor";
 import type { DraftData } from "@/lib/drafts/actions";
@@ -48,5 +48,44 @@ describe("MultiChannelEditor — draft continuation", () => {
     render(<MultiChannelEditor {...baseProps} initialDraft={draft} />);
     expect(screen.getByPlaceholderText("본문을 작성하세요...")).toHaveValue("");
     expect(screen.getByText("작성 중이던 글 있음")).toBeInTheDocument();
+  });
+});
+
+describe("MultiChannelEditor — AI 채널별 변환", () => {
+  it("shows the AI panel and keeps the button disabled until a draft exists", () => {
+    render(<MultiChannelEditor {...baseProps} initialDraft={null} />);
+    expect(screen.getByText("AI 채널별 변환")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "AI 변환" })).toBeDisabled();
+  });
+
+  it("applies converted text as per-channel content", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          provider: "anthropic",
+          model: "claude-sonnet-4-5",
+          channels: {
+            linkedin: { content: "AI 링크드인 본문" },
+            peerlist: { content: "AI 피어리스트 초안" },
+          },
+          warnings: [],
+        }),
+      }))
+    );
+
+    render(<MultiChannelEditor {...baseProps} initialDraft={draft} autoContinue />);
+    fireEvent.click(screen.getByRole("button", { name: "AI 변환" }));
+
+    await waitFor(() =>
+      expect(screen.getByDisplayValue("AI 링크드인 본문")).toBeInTheDocument()
+    );
+    expect(screen.getByDisplayValue("AI 피어리스트 초안")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "전체 적용" }));
+    expect(screen.getByText("채널별 맞춤 본문 적용")).toBeInTheDocument();
+
+    vi.unstubAllGlobals();
   });
 });
