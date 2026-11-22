@@ -14,6 +14,7 @@ const draft: DraftData = {
   instagramCards: [],
   instagramTemplate: "minimal-white",
   selectedChannels: ["linkedin"],
+  reddit: { subreddit: "", title: "", link: "", flairId: "" },
   updatedAt: null,
 };
 
@@ -24,7 +25,12 @@ const baseProps = {
   uploadBackground: vi.fn(async () => ({})) as any,
   saveDraft: vi.fn(async () => ({ ok: true })),
   deleteDraft: vi.fn(async () => {}),
-  connectedChannels: { linkedin: true, threads: true, instagram: true },
+  connectedChannels: {
+    linkedin: true,
+    threads: true,
+    instagram: true,
+    reddit: false,
+  },
 };
 
 describe("MultiChannelEditor — draft continuation", () => {
