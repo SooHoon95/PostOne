@@ -44,7 +44,23 @@ export type InstagramConnection = {
   created_at: string;
 };
 
-export type Channel = "linkedin" | "threads" | "instagram";
+export type RedditConnection = {
+  id: string;
+  user_id: string;
+  reddit_user_id: string | null;
+  reddit_username: string;
+  access_token_ciphertext: string;
+  access_token_iv: string;
+  access_token_tag: string;
+  refresh_token_ciphertext: string;
+  refresh_token_iv: string;
+  refresh_token_tag: string;
+  expires_at: string;
+  scope: string;
+  created_at: string;
+};
+
+export type Channel = "linkedin" | "threads" | "instagram" | "reddit";
 
 export type PublishStatus = "pending" | "success" | "failed";
 
@@ -66,5 +82,10 @@ export type Post = {
   media_urls: string[] | null;
   instagram_cards: InstagramCard[] | null;
   batch_id: string | null;
+  /** Reddit 전용 기록 */
+  subreddit: string | null;
+  title: string | null;
+  flair_id: string | null;
+  permalink: string | null;
   created_at: string;
 };
