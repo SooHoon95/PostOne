@@ -15,7 +15,7 @@ export default async function ComposePage({
   const user = await requireUser();
   const supabase = createClient();
 
-  const [linkedin, threads, instagram] = await Promise.all([
+  const [linkedin, threads, instagram, reddit] = await Promise.all([
     supabase
       .from("linkedin_connections")
       .select("id")
@@ -31,12 +31,18 @@ export default async function ComposePage({
       .select("id")
       .eq("user_id", user.id)
       .maybeSingle(),
+    supabase
+      .from("reddit_connections")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle(),
   ]);
 
   const connectedChannels = {
     linkedin: !!linkedin.data,
     threads: !!threads.data,
     instagram: !!instagram.data,
+    reddit: !!reddit.data,
   };
 
   const initialDraft = await loadDraft();

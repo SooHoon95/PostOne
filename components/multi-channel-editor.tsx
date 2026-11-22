@@ -15,7 +15,8 @@ import type {
   MultiPublishInput,
   UploadResult,
 } from "@/app/(app)/compose/actions";
-import type { DraftData } from "@/lib/drafts/actions";
+import type { DraftData, DraftReddit } from "@/lib/drafts/actions";
+import { isValidSubreddit, normalizeSubreddit } from "@/lib/reddit/subreddit";
 
 const BACKGROUND_MAX_BYTES = 8 * 1024 * 1024; // 8MB
 
@@ -31,13 +32,26 @@ const LIMITS = {
   linkedin: 3000,
   threads: 500,
   instagram: 2200,
+  reddit: 40000,
 };
+
+const REDDIT_TITLE_MAX = 300;
 
 const CHANNEL_LABEL: Record<Channel, string> = {
   linkedin: "LinkedIn",
   threads: "Threads",
   instagram: "Instagram",
+  reddit: "Reddit",
 };
+
+const EMPTY_REDDIT: DraftReddit = {
+  subreddit: "",
+  title: "",
+  link: "",
+  flairId: "",
+};
+
+type FlairOption = { id: string; text: string };
 
 const TEMPLATE_LABEL: Record<TemplateName, string> = {
   "minimal-white": "미니멀 화이트",
@@ -82,15 +96,26 @@ export function MultiChannelEditor({
           instagram:
             connectedChannels.instagram &&
             restore.selectedChannels.includes("instagram"),
+          reddit:
+            connectedChannels.reddit &&
+            restore.selectedChannels.includes("reddit"),
         }
       : {
           linkedin: connectedChannels.linkedin,
           threads: connectedChannels.threads,
           instagram: connectedChannels.instagram,
+          reddit: connectedChannels.reddit,
         }
   );
 
   const [body, setBody] = useState(restore ? restore.body : "");
+
+  // Reddit 입력 (서브레딧·제목은 필수, 링크·플레어는 선택)
+  const [reddit, setReddit] = useState<DraftReddit>(
+    restore ? restore.reddit : EMPTY_REDDIT
+  );
+  const [flairs, setFlairs] = useState<FlairOption[]>([]);
+  const [flairsLoading, setFlairsLoading] = useState(false);
 
   // Instagram 카드 상태
   const [cards, setCards] = useState<InstagramCard[]>(
@@ -123,7 +148,14 @@ export function MultiChannelEditor({
   );
 
   const bodyChannelsSelected =
-    selectedChannels.includes("linkedin") || selectedChannels.includes("threads");
+    selectedChannels.includes("linkedin") ||
+    selectedChannels.includes("threads") ||
+    // Reddit 링크 글은 본문이 없어도 되므로 self 글일 때만 본문 필수
+    (selectedChannels.includes("reddit") && !reddit.link.trim());
+
+  function updateReddit(patch: Partial<DraftReddit>) {
+    setReddit((prev) => ({ ...prev, ...patch }));
+  }
 
   // 복원 배너: 이어쓰기 — draft 내용으로 폼 채움 (연결된 채널만)
   function continueDraft() {
@@ -141,7 +173,11 @@ export function MultiChannelEditor({
       instagram:
         connectedChannels.instagram &&
         initialDraft.selectedChannels.includes("instagram"),
+      reddit:
+        connectedChannels.reddit &&
+        initialDraft.selectedChannels.includes("reddit"),
     });
+    setReddit(initialDraft.reddit);
     setShowRestoreBanner(false);
   }
 
@@ -156,6 +192,9 @@ export function MultiChannelEditor({
   const isEmptyDraft =
     body.trim().length === 0 &&
     cards.length === 0 &&
+    reddit.subreddit.trim().length === 0 &&
+    reddit.title.trim().length === 0 &&
+    reddit.link.trim().length === 0 &&
     selectedChannels.length === 0;
 
   useEffect(() => {
@@ -170,6 +209,7 @@ export function MultiChannelEditor({
           instagramCards: cards,
           instagramTemplate: igTemplate,
           selectedChannels,
+          reddit,
         });
         setSaveStatus(r.ok ? "saved" : "idle");
       } catch {
@@ -180,7 +220,45 @@ export function MultiChannelEditor({
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [body, cards, igTemplate, selectedChannels, showRestoreBanner, isEmptyDraft]);
+  }, [body, cards, igTemplate, selectedChannels, reddit, showRestoreBanner, isEmptyDraft]);
+
+  // Reddit 플레어 목록: 서브레딧이 유효해지면 디바운스로 조회.
+  // 플레어는 선택 사항이므로 실패해도 선택지를 비우기만 하고 발행은 그대로 둔다.
+  const flairSubreddit = normalizeSubreddit(reddit.subreddit);
+  useEffect(() => {
+    if (!selected.reddit || !connectedChannels.reddit) return;
+    if (!isValidSubreddit(flairSubreddit)) {
+      setFlairs([]);
+      return;
+    }
+    let cancelled = false;
+    setFlairsLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/reddit/flairs?subreddit=${encodeURIComponent(flairSubreddit)}`
+        );
+        const data = (await res.json()) as { flairs?: FlairOption[] };
+        if (cancelled) return;
+        const list = Array.isArray(data.flairs) ? data.flairs : [];
+        setFlairs(list);
+        // 목록에 없는 플레어를 선택하고 있었다면 선택 해제
+        setReddit((prev) =>
+          prev.flairId && !list.some((f) => f.id === prev.flairId)
+            ? { ...prev, flairId: "" }
+            : prev
+        );
+      } catch {
+        if (!cancelled) setFlairs([]);
+      } finally {
+        if (!cancelled) setFlairsLoading(false);
+      }
+    }, 600);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [flairSubreddit, selected.reddit, connectedChannels.reddit]);
 
   function addCard() {
     if (cards.length >= 10) return;
@@ -253,11 +331,19 @@ export function MultiChannelEditor({
         body,
         instagramCards: cards,
         instagramTemplate: igTemplate,
+        reddit: {
+          subreddit: normalizeSubreddit(reddit.subreddit),
+          title: reddit.title.trim(),
+          link: reddit.link.trim() || undefined,
+          flairId: reddit.flairId || undefined,
+        },
       });
       setResults(r.results);
       if (r.results.every((x) => x.success)) {
         setBody("");
         setCards([]);
+        setReddit(EMPTY_REDDIT);
+        setFlairs([]);
         setSaveStatus("idle");
         void deleteDraft();
       }
@@ -266,8 +352,15 @@ export function MultiChannelEditor({
     }
   }
 
+  const redditReady =
+    !selectedChannels.includes("reddit") ||
+    (isValidSubreddit(reddit.subreddit) && reddit.title.trim().length > 0);
+
   const canSubmit =
-    !submitting && selectedChannels.length > 0 && (bodyChannelsSelected ? body.trim().length > 0 : true);
+    !submitting &&
+    selectedChannels.length > 0 &&
+    redditReady &&
+    (bodyChannelsSelected ? body.trim().length > 0 : true);
 
   return (
     <div className="space-y-6">
@@ -332,7 +425,7 @@ export function MultiChannelEditor({
       {/* 본문 (항상 표시) */}
       <Card className="p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-medium">본문 (LinkedIn·Threads 발행 / Instagram 캡션)</p>
+          <p className="text-sm font-medium">본문 (LinkedIn · Threads · Reddit 텍스트 글 / Instagram 캡션)</p>
         </div>
         <Textarea
           value={body}
@@ -362,8 +455,107 @@ export function MultiChannelEditor({
               Instagram: {body.length} / {LIMITS.instagram}
             </span>
           )}
+          {selectedChannels.includes("reddit") && !reddit.link.trim() && (
+            <span
+              className={body.length > LIMITS.reddit ? "text-destructive" : "text-muted-foreground"}
+            >
+              Reddit: {body.length} / {LIMITS.reddit}
+            </span>
+          )}
         </div>
       </Card>
+
+      {/* Reddit 입력 */}
+      {selected.reddit && connectedChannels.reddit && (
+        <Card className="space-y-4 p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium">Reddit</p>
+            {flairSubreddit ? (
+              <span className="text-xs text-muted-foreground">
+                r/{flairSubreddit}
+              </span>
+            ) : null}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="reddit-subreddit">서브레딧</Label>
+              <Input
+                id="reddit-subreddit"
+                value={reddit.subreddit}
+                onChange={(e) => updateReddit({ subreddit: e.target.value })}
+                placeholder="예: iosdev (r/ 제외)"
+              />
+              {reddit.subreddit.trim() && !isValidSubreddit(reddit.subreddit) && (
+                <p className="text-xs text-destructive">
+                  영문·숫자·밑줄 2~21자로 입력
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reddit-flair">플레어 (선택)</Label>
+              <select
+                id="reddit-flair"
+                value={reddit.flairId}
+                onChange={(e) => updateReddit({ flairId: e.target.value })}
+                disabled={flairs.length === 0}
+                className="flex h-10 w-full rounded-md border border-input bg-card px-3 py-2 text-sm disabled:opacity-50"
+              >
+                <option value="">플레어 없음</option>
+                {flairs.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.text}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                {flairsLoading
+                  ? "플레어 불러오는 중..."
+                  : !isValidSubreddit(reddit.subreddit)
+                  ? "서브레딧 입력 후 선택 가능"
+                  : flairs.length > 0
+                  ? `사용 가능한 플레어 ${flairs.length}개`
+                  : "사용 가능한 플레어 없음"}
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="reddit-title">제목</Label>
+              <span
+                className={
+                  reddit.title.length > REDDIT_TITLE_MAX
+                    ? "text-xs text-destructive"
+                    : "text-xs text-muted-foreground"
+                }
+              >
+                {reddit.title.length} / {REDDIT_TITLE_MAX}
+              </span>
+            </div>
+            <Input
+              id="reddit-title"
+              value={reddit.title}
+              onChange={(e) => updateReddit({ title: e.target.value })}
+              placeholder="예: 사이드 프로젝트로 만든 iOS 앱 후기"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="reddit-link">링크 (선택)</Label>
+            <Input
+              id="reddit-link"
+              value={reddit.link}
+              onChange={(e) => updateReddit({ link: e.target.value })}
+              placeholder="https://..."
+            />
+            <p className="text-xs text-muted-foreground">
+              링크 입력 시 링크 글 · 비우면 본문으로 텍스트 글
+            </p>
+          </div>
+        </Card>
+      )}
 
       {/* Instagram 카드 */}
       {selected.instagram && connectedChannels.instagram && (
@@ -519,6 +711,16 @@ export function MultiChannelEditor({
               </div>
               {r.externalId && (
                 <p className="mt-1 text-xs opacity-75">ID: {r.externalId}</p>
+              )}
+              {r.permalink && (
+                <a
+                  href={r.permalink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 inline-block text-xs text-primary hover:underline"
+                >
+                  게시물 열기
+                </a>
               )}
               {r.error && <p className="mt-1 text-xs">{r.error}</p>}
             </div>

@@ -21,10 +21,14 @@ const channelLabels: Record<Channel, string> = {
   linkedin: "LinkedIn",
   threads: "Threads",
   instagram: "Instagram",
+  reddit: "Reddit",
 };
 
 function asChannel(value: string): Channel | null {
-  return value === "linkedin" || value === "threads" || value === "instagram"
+  return value === "linkedin" ||
+    value === "threads" ||
+    value === "instagram" ||
+    value === "reddit"
     ? value
     : null;
 }
@@ -36,10 +40,14 @@ const filters: { value: Filter; label: string }[] = [
   { value: "linkedin", label: "LinkedIn" },
   { value: "threads", label: "Threads" },
   { value: "instagram", label: "Instagram" },
+  { value: "reddit", label: "Reddit" },
 ];
 
 function asFilter(value: string | undefined): Filter {
-  return value === "linkedin" || value === "threads" || value === "instagram"
+  return value === "linkedin" ||
+    value === "threads" ||
+    value === "instagram" ||
+    value === "reddit"
     ? value
     : "all";
 }
@@ -54,6 +62,9 @@ function ChannelStatus({ post }: { post: Post }) {
       <span className="text-sm font-medium text-foreground">
         {channel ? channelLabels[channel] : post.channel.toUpperCase()}
       </span>
+      {post.channel === "reddit" && post.subreddit ? (
+        <span className="text-xs text-muted-foreground">r/{post.subreddit}</span>
+      ) : null}
       <Badge variant={succeeded ? "success" : "destructive"} dot>
         {succeeded ? "발행됨" : "실패"}
       </Badge>
@@ -75,8 +86,12 @@ function PostCard({ post }: { post: Post }) {
           </time>
         </div>
 
+        {post.title ? (
+          <p className="mt-3 text-sm font-medium text-foreground">{post.title}</p>
+        ) : null}
+
         {body ? (
-          <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">
+          <p className={post.title ? "mt-1 whitespace-pre-wrap text-sm text-foreground" : "mt-3 whitespace-pre-wrap text-sm text-foreground"}>
             {body}
           </p>
         ) : (
@@ -84,11 +99,17 @@ function PostCard({ post }: { post: Post }) {
         )}
 
         {succeeded
-          ? post.external_id && (
-              <p className="mt-2 font-mono text-xs text-muted-foreground">
-                {post.external_id}
-              </p>
-            )
+          ? post.permalink
+            ? (
+                <p className="mt-2 truncate text-xs text-primary">
+                  {post.permalink}
+                </p>
+              )
+            : post.external_id && (
+                <p className="mt-2 font-mono text-xs text-muted-foreground">
+                  {post.external_id}
+                </p>
+              )
           : post.error_message && (
               <p className="mt-2 text-xs text-destructive">
                 {post.error_message}
@@ -122,8 +143,14 @@ function BatchCard({ posts }: { posts: Post[] }) {
           </time>
         </div>
 
+        {primary.title ? (
+          <p className="mt-3 text-sm font-medium text-foreground">
+            {primary.title}
+          </p>
+        ) : null}
+
         {body ? (
-          <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">
+          <p className={primary.title ? "mt-1 whitespace-pre-wrap text-sm text-foreground" : "mt-3 whitespace-pre-wrap text-sm text-foreground"}>
             {body}
           </p>
         ) : (

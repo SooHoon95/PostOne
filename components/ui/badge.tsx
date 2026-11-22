@@ -15,6 +15,7 @@ const badgeVariants = cva(
         "channel-linkedin": "bg-channel-linkedin/10 text-channel-linkedin",
         "channel-threads": "bg-channel-threads/10 text-channel-threads",
         "channel-instagram": "bg-channel-instagram/10 text-channel-instagram",
+        "channel-reddit": "bg-channel-reddit/10 text-channel-reddit",
       },
     },
     defaultVariants: {
@@ -34,6 +35,7 @@ const dotVariants = cva("size-1.5 shrink-0 rounded-full", {
       "channel-linkedin": "bg-channel-linkedin",
       "channel-threads": "bg-channel-threads",
       "channel-instagram": "bg-channel-instagram",
+      "channel-reddit": "bg-channel-reddit",
     },
   },
   defaultVariants: {

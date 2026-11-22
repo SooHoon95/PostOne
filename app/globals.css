@@ -44,6 +44,7 @@
     --channel-linkedin: 201 100% 35%;
     --channel-threads: 0 0% 0%;
     --channel-instagram: 326 78% 53%;
+    --channel-reddit: 16 100% 50%;
 
     --radius: 0.625rem;
   }
@@ -81,6 +82,7 @@
     --channel-linkedin: 201 90% 55%;
     --channel-threads: 0 0% 92%;
     --channel-instagram: 326 78% 63%;
+    --channel-reddit: 16 100% 62%;
   }
 }
 

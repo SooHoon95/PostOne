@@ -59,6 +59,7 @@ const config: Config = {
           linkedin: "hsl(var(--channel-linkedin) / <alpha-value>)",
           threads: "hsl(var(--channel-threads) / <alpha-value>)",
           instagram: "hsl(var(--channel-instagram) / <alpha-value>)",
+          reddit: "hsl(var(--channel-reddit) / <alpha-value>)",
         },
       },
       borderRadius: {

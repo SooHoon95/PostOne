@@ -12,7 +12,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "채널 연동",
-  description: "LinkedIn · Threads · Instagram 계정을 연결하세요.",
+  description: "LinkedIn · Threads · Instagram · Reddit 계정을 연결하세요.",
 };
 
 type ConnectionRow = {
@@ -22,7 +22,7 @@ type ConnectionRow = {
 
 async function loadConnections(userId: string) {
   const supabase = createClient();
-  const [linkedin, threads, instagram] = await Promise.all([
+  const [linkedin, threads, instagram, reddit] = await Promise.all([
     supabase
       .from("linkedin_connections")
       .select("expires_at")
@@ -38,11 +38,24 @@ async function loadConnections(userId: string) {
       .select("expires_at, username")
       .eq("user_id", userId)
       .maybeSingle(),
+    supabase
+      .from("reddit_connections")
+      .select("expires_at, reddit_username")
+      .eq("user_id", userId)
+      .maybeSingle(),
   ]);
+
+  const redditRow = reddit.data as
+    | { expires_at: string; reddit_username: string | null }
+    | null;
+
   return {
     linkedin: linkedin.data as ConnectionRow | null,
     threads: threads.data as ConnectionRow | null,
     instagram: instagram.data as ConnectionRow | null,
+    reddit: redditRow
+      ? { expires_at: redditRow.expires_at, username: redditRow.reddit_username }
+      : null,
   };
 }
 
@@ -77,9 +90,13 @@ function ChannelCard({
             </div>
             <p className="text-sm text-muted-foreground">
               {connection
-                ? `${connection.username ? `@${connection.username} · ` : ""}만료: ${new Date(
-                    connection.expires_at
-                  ).toLocaleDateString("ko-KR")}`
+                ? `${
+                    connection.username
+                      ? `${channel === "reddit" ? "u/" : "@"}${connection.username} · `
+                      : ""
+                  }만료: ${new Date(connection.expires_at).toLocaleDateString(
+                    "ko-KR"
+                  )}`
                 : description}
             </p>
           </div>
@@ -110,6 +127,8 @@ export default async function ConnectionsPage({
       ? "Threads"
       : searchParams.connected === "instagram"
       ? "Instagram"
+      : searchParams.connected === "reddit"
+      ? "Reddit"
       : searchParams.connected
       ? "LinkedIn"
       : null;
@@ -159,6 +178,13 @@ export default async function ConnectionsPage({
           description="비즈니스 계정 + Facebook Page 연결 필요 · 카드 이미지 자동 생성"
           connection={conns.instagram}
           startUrl="/api/instagram/oauth/start"
+        />
+        <ChannelCard
+          channel="reddit"
+          name="Reddit"
+          description="공식 API · 서브레딧 선택 발행 · 텍스트 최대 40,000자"
+          connection={conns.reddit}
+          startUrl="/api/reddit/oauth/start"
         />
       </div>
     </div>

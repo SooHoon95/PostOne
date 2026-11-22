@@ -20,10 +20,14 @@ const channelLabels: Record<Channel, string> = {
   linkedin: "LinkedIn",
   threads: "Threads",
   instagram: "Instagram",
+  reddit: "Reddit",
 };
 
 function asChannel(value: string): Channel | null {
-  return value === "linkedin" || value === "threads" || value === "instagram"
+  return value === "linkedin" ||
+    value === "threads" ||
+    value === "instagram" ||
+    value === "reddit"
     ? value
     : null;
 }
@@ -113,7 +117,26 @@ function ChannelResultCard({ post }: { post: Post }) {
         </Badge>
       </div>
 
+      {post.channel === "reddit" && (
+        <div className="mt-2 space-y-1">
+          {post.title ? (
+            <p className="text-sm font-medium text-foreground">{post.title}</p>
+          ) : null}
+          {post.permalink ? (
+            <a
+              href={post.permalink}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-block text-xs text-primary hover:underline"
+            >
+              원문 열기
+            </a>
+          ) : null}
+        </div>
+      )}
+
       {succeeded ? (
+        post.channel !== "reddit" &&
         post.external_id && (
           <p className="mt-2 font-mono text-xs text-muted-foreground">
             {post.external_id}

@@ -20,10 +20,14 @@ const channelLabels: Record<Channel, string> = {
   linkedin: "LinkedIn",
   threads: "Threads",
   instagram: "Instagram",
+  reddit: "Reddit",
 };
 
 function asChannel(value: string): Channel | null {
-  return value === "linkedin" || value === "threads" || value === "instagram"
+  return value === "linkedin" ||
+    value === "threads" ||
+    value === "instagram" ||
+    value === "reddit"
     ? value
     : null;
 }

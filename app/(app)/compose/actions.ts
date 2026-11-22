@@ -5,6 +5,17 @@ import { createClient } from "@/lib/supabase/server";
 import { decryptToken } from "@/lib/crypto/encrypt";
 import { publishPost as linkedInPublish } from "@/lib/linkedin/client";
 import { publishPost as threadsPublish } from "@/lib/threads/client";
+import {
+  isValidSubreddit,
+  normalizeSubreddit,
+  submitPost as redditSubmit,
+  REDDIT_TITLE_MAX,
+} from "@/lib/reddit/client";
+import {
+  REDDIT_CONNECTION_COLUMNS,
+  resolveRedditToken,
+  type RedditConnectionRow,
+} from "@/lib/reddit/session";
 import { publishSingle, publishCarousel } from "@/lib/instagram/client";
 import type { Slide } from "@/lib/cards/text-split";
 import { renderSlidesToImages } from "@/lib/cards/generator";
@@ -17,7 +28,7 @@ import type { TemplateName } from "@/lib/cards/templates";
 import { revalidatePath } from "next/cache";
 
 type Input = { content: string; batchId?: string };
-type Result = { urn?: string; error?: string };
+type Result = { urn?: string; permalink?: string; error?: string };
 type MediaResult = { mediaId?: string; mediaUrls?: string[]; error?: string };
 
 const LINKEDIN_MAX = 3000;
@@ -155,6 +166,110 @@ export async function publishToThreads({ content, batchId }: Input): Promise<Res
       channel: "threads",
       status: "failed",
       error_message: msg,
+      batch_id: batchId ?? null,
+    });
+    return { error: msg };
+  }
+}
+
+// ─── Reddit ─────────────────────────────────────────────────────────────────
+
+export type RedditInput = {
+  content: string;
+  batchId?: string;
+  subreddit: string;
+  title: string;
+  link?: string; // 입력 시 링크 글, 없으면 본문으로 텍스트 글
+  flairId?: string;
+};
+
+export async function publishToReddit({
+  content,
+  subreddit,
+  title,
+  link,
+  flairId,
+  batchId,
+}: RedditInput): Promise<Result> {
+  const sr = normalizeSubreddit(subreddit ?? "");
+  const trimmedTitle = (title ?? "").trim();
+  const trimmedLink = (link ?? "").trim();
+  const body = content.trim();
+
+  if (!sr) return { error: "서브레딧을 입력하세요." };
+  if (!isValidSubreddit(sr)) {
+    return { error: "서브레딧 이름이 올바르지 않습니다 (영문·숫자·밑줄 2~21자)." };
+  }
+  if (!trimmedTitle) return { error: "Reddit 제목을 입력하세요." };
+  if (trimmedTitle.length > REDDIT_TITLE_MAX) {
+    return { error: `Reddit 제목은 최대 ${REDDIT_TITLE_MAX}자입니다.` };
+  }
+  if (!trimmedLink && !body) return { error: "본문 또는 링크를 입력하세요." };
+  if (trimmedLink && !/^https?:\/\//i.test(trimmedLink)) {
+    return { error: "링크는 http(s)://로 시작해야 합니다." };
+  }
+
+  const user = await requireUser();
+  const supabase = createClient();
+
+  const { data: connection } = await supabase
+    .from("reddit_connections")
+    .select(REDDIT_CONNECTION_COLUMNS)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!connection) {
+    return {
+      error: "Reddit이 연결되지 않았습니다. 채널 연동에서 먼저 연결해주세요.",
+    };
+  }
+
+  // 링크 글은 본문을 쓰지 않으므로 기록에는 링크를 본문으로 남긴다.
+  const storedContent = trimmedLink || body;
+
+  try {
+    const { accessToken } = await resolveRedditToken({
+      supabase,
+      userId: user.id,
+      connection: connection as unknown as RedditConnectionRow,
+    });
+
+    const result = await redditSubmit({
+      accessToken,
+      subreddit: sr,
+      title: trimmedTitle,
+      body,
+      url: trimmedLink || undefined,
+      flairId: flairId || undefined,
+    });
+
+    await supabase.from("posts").insert({
+      user_id: user.id,
+      content: storedContent,
+      channel: "reddit",
+      external_id: result.fullname,
+      status: "success",
+      subreddit: sr,
+      title: trimmedTitle,
+      flair_id: flairId || null,
+      permalink: result.permalink,
+      published_at: new Date().toISOString(),
+      batch_id: batchId ?? null,
+    });
+
+    revalidatePath("/history");
+    return { urn: result.fullname, permalink: result.permalink ?? undefined };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Unknown error";
+    await supabase.from("posts").insert({
+      user_id: user.id,
+      content: storedContent,
+      channel: "reddit",
+      status: "failed",
+      error_message: msg,
+      subreddit: sr,
+      title: trimmedTitle,
+      flair_id: flairId || null,
       batch_id: batchId ?? null,
     });
     return { error: msg };
@@ -313,19 +428,28 @@ export async function publishToInstagram({
 
 // ─── Multi-channel ──────────────────────────────────────────────────────────
 
-export type Channel = "linkedin" | "threads" | "instagram";
+export type Channel = "linkedin" | "threads" | "instagram" | "reddit";
+
+export type RedditPublishInput = {
+  subreddit: string;
+  title: string;
+  link?: string;
+  flairId?: string;
+};
 
 export type MultiPublishInput = {
   channels: Channel[];
-  body: string;                       // LinkedIn + Threads
+  body: string;                       // LinkedIn + Threads + Reddit(self) 본문
   instagramCards: InstagramCard[];    // 빈 배열이면 빈 1장
   instagramTemplate?: TemplateName;
+  reddit?: RedditPublishInput;        // Reddit 선택 시 서브레딧/제목(필수)
 };
 
 export type ChannelResult = {
   channel: Channel;
   success: boolean;
   externalId?: string;
+  permalink?: string;
   mediaUrls?: string[];
   error?: string;
 };
@@ -363,6 +487,22 @@ export async function publishMulti(
         channel,
         success: !r.error,
         externalId: r.urn,
+        error: r.error,
+      });
+    } else if (channel === "reddit") {
+      const r = await publishToReddit({
+        content: body,
+        batchId,
+        subreddit: input.reddit?.subreddit ?? "",
+        title: input.reddit?.title ?? "",
+        link: input.reddit?.link,
+        flairId: input.reddit?.flairId,
+      });
+      results.push({
+        channel,
+        success: !r.error,
+        externalId: r.urn,
+        permalink: r.permalink,
         error: r.error,
       });
     } else if (channel === "instagram") {
