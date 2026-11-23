@@ -147,14 +147,14 @@ describe("background Reddit tab + fill", () => {
       send({ type: "POSTONE_OPEN_REDDIT", payload: { subreddit: "iosdev" } })
     ).resolves.toMatchObject({ ok: true, opened: "new" });
     expect(tabs.create).toHaveBeenCalledWith({
-      url: "https://www.reddit.com/r/iosdev/submit",
+      url: "https://www.reddit.com/r/iosdev/submit?type=TEXT",
     });
   });
 
   it("opens /submit without a valid hint", async () => {
     await send({ type: "POSTONE_OPEN_REDDIT", payload: {} });
     expect(tabs.create).toHaveBeenCalledWith({
-      url: "https://www.reddit.com/submit",
+      url: "https://www.reddit.com/submit?type=TEXT",
     });
   });
 

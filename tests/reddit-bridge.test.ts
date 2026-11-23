@@ -80,13 +80,17 @@ describe("reddit draft contract", () => {
     expect(normalizeRedditSubreddit(" r/iosdev ")).toBe("iosdev");
     expect(normalizeRedditSubreddit("/r/SwiftUI")).toBe("SwiftUI");
     expect(redditSubmitUrl("iosdev")).toBe(
-      "https://www.reddit.com/r/iosdev/submit"
+      "https://www.reddit.com/r/iosdev/submit?type=TEXT"
     );
     expect(redditSubmitUrl("r/iosdev")).toBe(
-      "https://www.reddit.com/r/iosdev/submit"
+      "https://www.reddit.com/r/iosdev/submit?type=TEXT"
     );
-    expect(redditSubmitUrl("")).toBe("https://www.reddit.com/submit");
-    expect(redditSubmitUrl("bad name!")).toBe("https://www.reddit.com/submit");
+    expect(redditSubmitUrl("")).toBe(
+      "https://www.reddit.com/submit?type=TEXT"
+    );
+    expect(redditSubmitUrl("bad name!")).toBe(
+      "https://www.reddit.com/submit?type=TEXT"
+    );
     expect(REDDIT_SUBMIT_URL_PATTERNS).toEqual([
       "https://www.reddit.com/submit*",
       "https://www.reddit.com/r/*/submit*",

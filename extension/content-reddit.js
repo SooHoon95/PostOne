@@ -13,20 +13,24 @@
   "use strict";
 
   const TITLE_SELECTORS = [
+    'faceplate-textarea-input[name="title"] textarea',
+    "#innerTextArea",
     'textarea[name="title"]',
     'input[name="title"]',
     'textarea[placeholder="Title"]',
     'textarea[placeholder*="title" i]',
     '[aria-label="Title"]',
     '[aria-label="제목"]',
-    "faceplate-textarea-input textarea",
   ];
 
   const BODY_SELECTORS = [
+    'div[name="body"][contenteditable="true"]',
+    'div[name="body"]',
+    'shreddit-composer div[contenteditable="true"]',
+    'div[contenteditable="true"][data-lexical-editor="true"]',
     'div[contenteditable="true"][role="textbox"]',
     '[role="textbox"][contenteditable="true"]',
     'div[contenteditable="true"]',
-    "shreddit-composer div[contenteditable]",
     'textarea[name="text"]',
     'textarea[placeholder*="body" i]',
     'textarea[placeholder*="text" i]',
@@ -86,18 +90,37 @@
       .join(" ");
   }
 
-  function isUsable(el, selectors) {
-    if (!(el instanceof HTMLElement)) return false;
-    if (selectors && !selectors.some((selector) => el.matches(selector))) {
-      return false;
+  /**
+   * Reddit 새 UI(shreddit)는 작성 폼을 open shadow root 안에 렌더한다.
+   * document.querySelectorAll 만으로는 찾지 못하므로 열린 shadow root 를 재귀 탐색한다.
+   */
+  function deepQueryAll(selector, root) {
+    const results = [];
+    const scope = root || document;
+    try {
+      for (const el of Array.from(scope.querySelectorAll(selector))) {
+        results.push(el);
+      }
+      for (const el of Array.from(scope.querySelectorAll("*"))) {
+        if (el.shadowRoot) {
+          results.push(...deepQueryAll(selector, el.shadowRoot));
+        }
+      }
+    } catch {
+      // 접근 불가한 root(닫힌 shadow 등) — 건너뛴다.
     }
+    return results;
+  }
+
+  function isUsable(el) {
+    if (!(el instanceof HTMLElement)) return false;
     if (el.closest('[aria-hidden="true"]')) return false;
     return isEditable(el) && isVisible(el);
   }
 
   function findTitle() {
     for (const selector of TITLE_SELECTORS) {
-      for (const el of Array.from(document.querySelectorAll(selector))) {
+      for (const el of deepQueryAll(selector)) {
         if (isUsable(el) && !SKIP_HINT.test(hintText(el))) return el;
       }
     }
@@ -114,11 +137,12 @@
     const seen = new Set();
 
     for (const selector of BODY_SELECTORS) {
-      for (const el of Array.from(document.querySelectorAll(selector))) {
+      for (const el of deepQueryAll(selector)) {
         if (!(el instanceof HTMLElement) || seen.has(el)) continue;
         seen.add(el);
         if (el === titleEl) continue;
         if (el.matches('textarea[name="title"], input[name="title"]')) continue;
+        if (el.matches("faceplate-textarea-input")) continue;
         if (!isUsable(el)) continue;
 
         const hints = hintText(el);
@@ -145,7 +169,7 @@
 
   function findSubredditInput() {
     for (const selector of SUBREDDIT_SELECTORS) {
-      for (const el of Array.from(document.querySelectorAll(selector))) {
+      for (const el of deepQueryAll(selector)) {
         if (isUsable(el)) return el;
       }
     }

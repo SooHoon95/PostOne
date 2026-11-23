@@ -170,6 +170,34 @@ describe("content-reddit submit fill", () => {
     expect(empty.sendResponse.mock.calls[0][0]).toMatchObject({ ok: false });
   });
 
+  it("fills a composer rendered inside open shadow roots (current Reddit UI)", async () => {
+    document.body.innerHTML = `<shreddit-composer></shreddit-composer>`;
+    const composer = document.querySelector("shreddit-composer") as HTMLElement;
+    const root = composer.attachShadow({ mode: "open" });
+
+    const titleHost = document.createElement("faceplate-textarea-input");
+    titleHost.setAttribute("name", "title");
+    const titleShadow = titleHost.attachShadow({ mode: "open" });
+    const innerTitle = document.createElement("textarea");
+    innerTitle.id = "innerTextArea";
+    innerTitle.setAttribute("maxlength", "300");
+    titleShadow.appendChild(innerTitle);
+    root.appendChild(titleHost);
+
+    const body = document.createElement("div");
+    body.setAttribute("name", "body");
+    body.setAttribute("contenteditable", "true");
+    body.setAttribute("data-lexical-editor", "true");
+    root.appendChild(body);
+
+    const { sendResponse } = fill();
+    await vi.waitFor(() => expect(sendResponse).toHaveBeenCalled());
+
+    expect(sendResponse.mock.calls[0][0]).toMatchObject({ ok: true });
+    expect(innerTitle.value).toBe("뮤터 출시 후기");
+    expect(body.textContent).toContain("첫 문단");
+  });
+
   it("answers a status check with whether both fields exist", async () => {
     document.body.innerHTML = `
       <textarea name="title" placeholder="Title"></textarea>

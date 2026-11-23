@@ -34,13 +34,14 @@ export function isValidRedditSubreddit(input: string | undefined | null): boolea
   return SUBREDDIT_RE.test(normalizeRedditSubreddit(input));
 }
 
-/** 글쓰기 창 주소 — 힌트가 유효하면 r/<sub>/submit, 아니면 커뮤니티 선택 화면. */
+/** 글쓰기 창 주소 — 힌트가 유효하면 r/<sub>/submit, 아니면 커뮤니티 선택 화면.
+ *  `?type=TEXT` 로 열어 본문(text) 작성 탭이 바로 열리게 한다. */
 export function redditSubmitUrl(subreddit?: string): string {
   const sub = normalizeRedditSubreddit(subreddit);
   if (sub && SUBREDDIT_RE.test(sub)) {
-    return `${REDDIT_ORIGIN}/r/${sub}/submit`;
+    return `${REDDIT_ORIGIN}/r/${sub}/submit?type=TEXT`;
   }
-  return `${REDDIT_ORIGIN}/submit`;
+  return `${REDDIT_ORIGIN}/submit?type=TEXT`;
 }
 
 /** 이미 열린 Reddit 글쓰기 탭을 찾을 때 쓰는 URL 패턴 */

@@ -18,7 +18,7 @@ const MAX_CONTENT_LENGTH = 20000;
 
 const REDDIT_DRAFT_STORAGE_KEY = "redditDraft";
 const REDDIT_ORIGIN = "https://www.reddit.com";
-const REDDIT_SUBMIT_URL = "https://www.reddit.com/submit";
+const REDDIT_SUBMIT_URL = "https://www.reddit.com/submit?type=TEXT";
 const REDDIT_SUBMIT_URL_PATTERNS = [
   "https://www.reddit.com/submit*",
   "https://www.reddit.com/r/*/submit*",
@@ -88,7 +88,7 @@ function normalizeSubreddit(input) {
 function redditSubmitUrl(subreddit) {
   const sub = normalizeSubreddit(subreddit);
   if (sub && SUBREDDIT_RE.test(sub)) {
-    return `${REDDIT_ORIGIN}/r/${sub}/submit`;
+    return `${REDDIT_ORIGIN}/r/${sub}/submit?type=TEXT`;
   }
   return REDDIT_SUBMIT_URL;
 }
