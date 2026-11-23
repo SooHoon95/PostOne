@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/auth/get-user";
 import { createClient } from "@/lib/supabase/server";
 import { MultiChannelEditor } from "@/components/multi-channel-editor";
-import { publishMulti, createCardBgUpload } from "./actions";
+import { publishMulti, createCardBgUpload, schedulePost } from "./actions";
 import { saveDraft, loadDraft, deleteDraft } from "@/lib/drafts/actions";
 
 // Vercel: Instagram 캐러셀 + 카드 생성은 시간이 걸려서 60초까지 허용
@@ -54,6 +54,7 @@ export default async function ComposePage({
       <h1 className="text-2xl font-semibold">글쓰기</h1>
       <MultiChannelEditor
         publish={publishMulti}
+        schedule={schedulePost}
         uploadBackground={createCardBgUpload}
         connectedChannels={connectedChannels}
         initialDraft={initialDraft}

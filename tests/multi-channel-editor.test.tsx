@@ -22,6 +22,8 @@ const baseProps = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   publish: vi.fn(async () => ({ results: [] })) as any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schedule: vi.fn(async () => ({ ok: true })) as any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   uploadBackground: vi.fn(async () => ({})) as any,
   saveDraft: vi.fn(async () => ({ ok: true })),
   deleteDraft: vi.fn(async () => {}),

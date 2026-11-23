@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,7 @@ import type {
   MultiPublishInput,
   UploadResult,
 } from "@/app/(app)/compose/actions";
+import type { ScheduleResult } from "@/app/(app)/compose/actions";
 import type { DraftData, DraftReddit } from "@/lib/drafts/actions";
 import { isValidSubreddit, normalizeSubreddit } from "@/lib/reddit/subreddit";
 import { AiAdaptPanel, type AiApplyPayload } from "@/components/ai-adapt-panel";
@@ -64,9 +66,33 @@ const TEMPLATE_LABEL: Record<TemplateName, string> = {
 const ORDINAL = ["첫번째", "두번째", "세번째", "네번째", "다섯번째", "여섯번째", "일곱번째", "여덟번째", "아홉번째", "열번째"];
 
 type SaveStatus = "idle" | "saving" | "saved";
+type PublishMode = "now" | "schedule";
+
+/** datetime-local 값(YYYY-MM-DDTHH:mm) — 다음 30분 경계를 기본 예약 시각으로 둔다. */
+function defaultScheduleValue(): string {
+  const d = new Date();
+  d.setSeconds(0, 0);
+  d.setMinutes(d.getMinutes() + (30 - (d.getMinutes() % 30)));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
+    d.getHours()
+  )}:${pad(d.getMinutes())}`;
+}
+
+/** 예약 완료 안내용 표기 (한국 시간) */
+function formatScheduledAt(iso: string): string {
+  return new Date(iso).toLocaleString("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export function MultiChannelEditor({
   publish,
+  schedule,
   uploadBackground,
   connectedChannels,
   initialDraft,
@@ -75,6 +101,9 @@ export function MultiChannelEditor({
   deleteDraft,
 }: {
   publish: (input: MultiPublishInput) => Promise<{ results: ChannelResult[] }>;
+  schedule: (
+    input: MultiPublishInput & { scheduledAt: string }
+  ) => Promise<ScheduleResult>;
   uploadBackground: (fileExt: string) => Promise<UploadResult>;
   connectedChannels: Record<Channel, boolean>;
   initialDraft: DraftData | null;
@@ -134,6 +163,15 @@ export function MultiChannelEditor({
 
   const [submitting, setSubmitting] = useState(false);
   const [results, setResults] = useState<ChannelResult[] | null>(null);
+
+  // 발행 시점 — 즉시 발행 / 예약 발행
+  const [mode, setMode] = useState<PublishMode>("now");
+  const [scheduledAt, setScheduledAt] = useState("");
+  const [scheduleError, setScheduleError] = useState("");
+  const [scheduled, setScheduled] = useState<{
+    at: string;
+    channels: number;
+  } | null>(null);
 
   // 임시저장 복원 배너 (initialDraft가 있고 아직 선택 전이면 노출)
   const [showRestoreBanner, setShowRestoreBanner] = useState(
@@ -369,35 +407,76 @@ export function MultiChannelEditor({
   async function onSubmit() {
     setSubmitting(true);
     setResults(null);
+    setScheduleError("");
+
+    const tailored: Partial<Record<Channel, string>> = {};
+    for (const channel of selectedChannels) {
+      const value = (channelContents[channel] ?? "").trim();
+      if (value) tailored[channel] = value;
+    }
+
+    const input: MultiPublishInput = {
+      channels: selectedChannels,
+      body,
+      instagramCards: cards,
+      instagramTemplate: igTemplate,
+      reddit: {
+        subreddit: normalizeSubreddit(reddit.subreddit),
+        title: reddit.title.trim(),
+        link: reddit.link.trim() || undefined,
+        flairId: reddit.flairId || undefined,
+      },
+      channelContents:
+        Object.keys(tailored).length > 0 ? tailored : undefined,
+    };
+
+    function clearForm() {
+      setBody("");
+      setCards([]);
+      setReddit(EMPTY_REDDIT);
+      setFlairs([]);
+      setChannelContents({});
+      setSaveStatus("idle");
+      setScheduledAt("");
+      void deleteDraft();
+    }
+
     try {
-      const tailored: Partial<Record<Channel, string>> = {};
-      for (const channel of selectedChannels) {
-        const value = (channelContents[channel] ?? "").trim();
-        if (value) tailored[channel] = value;
+      if (mode === "schedule") {
+        if (!scheduledAt) {
+          setScheduleError("예약 시각을 선택하세요.");
+          return;
+        }
+        const at = new Date(scheduledAt);
+        if (!Number.isFinite(at.getTime())) {
+          setScheduleError("예약 시각 형식이 올바르지 않습니다.");
+          return;
+        }
+        if (at.getTime() <= Date.now()) {
+          setScheduleError("지금 이후 시각을 선택하세요.");
+          return;
+        }
+
+        const r = await schedule({
+          ...input,
+          scheduledAt: at.toISOString(),
+        });
+        if (!r.ok) {
+          setScheduleError(r.error ?? "예약 등록에 실패했습니다.");
+          return;
+        }
+        setScheduled({
+          at: r.scheduledAt ?? at.toISOString(),
+          channels: selectedChannels.length,
+        });
+        clearForm();
+        return;
       }
 
-      const r = await publish({
-        channels: selectedChannels,
-        body,
-        instagramCards: cards,
-        instagramTemplate: igTemplate,
-        reddit: {
-          subreddit: normalizeSubreddit(reddit.subreddit),
-          title: reddit.title.trim(),
-          link: reddit.link.trim() || undefined,
-          flairId: reddit.flairId || undefined,
-        },
-        channelContents: Object.keys(tailored).length > 0 ? tailored : undefined,
-      });
+      const r = await publish(input);
       setResults(r.results);
       if (r.results.every((x) => x.success)) {
-        setBody("");
-        setCards([]);
-        setReddit(EMPTY_REDDIT);
-        setFlairs([]);
-        setChannelContents({});
-        setSaveStatus("idle");
-        void deleteDraft();
+        clearForm();
       }
     } finally {
       setSubmitting(false);
@@ -418,7 +497,8 @@ export function MultiChannelEditor({
     !submitting &&
     selectedChannels.length > 0 &&
     redditReady &&
-    channelContentReady;
+    channelContentReady &&
+    (mode === "now" || scheduledAt.length > 0);
 
   return (
     <div className="space-y-6">
@@ -544,6 +624,7 @@ export function MultiChannelEditor({
         sourceText={body}
         channels={aiChannels}
         subreddit={reddit.subreddit}
+        redditConnected={connectedChannels.reddit}
         onApply={applyAiResult}
       />
 
@@ -764,6 +845,57 @@ export function MultiChannelEditor({
         </Card>
       )}
 
+      {/* 발행 시점 — 즉시 / 예약 */}
+      <Card className="space-y-3 p-4">
+        <p className="text-sm font-medium">발행 시점</p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant={mode === "now" ? "default" : "outline"}
+            onClick={() => {
+              setMode("now");
+              setScheduleError("");
+            }}
+          >
+            즉시 발행
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={mode === "schedule" ? "default" : "outline"}
+            onClick={() => {
+              setMode("schedule");
+              setScheduleError("");
+              if (!scheduledAt) setScheduledAt(defaultScheduleValue());
+            }}
+          >
+            예약 발행
+          </Button>
+        </div>
+        {mode === "schedule" && (
+          <div className="space-y-2">
+            <Label htmlFor="scheduled-at">예약 시각</Label>
+            <Input
+              id="scheduled-at"
+              type="datetime-local"
+              value={scheduledAt}
+              onChange={(e) => {
+                setScheduledAt(e.target.value);
+                setScheduleError("");
+              }}
+              className="w-full sm:w-auto"
+            />
+            <p className="text-xs text-muted-foreground">
+              선택한 시각에 자동 발행 · 발행 이력에서 취소 가능
+            </p>
+            {scheduleError && (
+              <p className="text-xs text-destructive">{scheduleError}</p>
+            )}
+          </div>
+        )}
+      </Card>
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <p className="text-xs text-muted-foreground">
@@ -777,9 +909,30 @@ export function MultiChannelEditor({
           )}
         </div>
         <Button onClick={onSubmit} disabled={!canSubmit}>
-          {submitting ? "발행 중..." : `${selectedChannels.length}개 채널에 발행`}
+          {submitting
+            ? mode === "schedule"
+              ? "예약 중..."
+              : "발행 중..."
+            : mode === "schedule"
+            ? `${selectedChannels.length}개 채널 예약 발행`
+            : `${selectedChannels.length}개 채널에 발행`}
         </Button>
       </div>
+
+      {scheduled && (
+        <Card className="space-y-1 border-primary/40 bg-muted p-4">
+          <p className="text-sm font-medium text-foreground">예약 완료</p>
+          <p className="text-sm text-muted-foreground">
+            {formatScheduledAt(scheduled.at)} · {scheduled.channels}개 채널
+          </p>
+          <Link
+            href="/history"
+            className="inline-block text-xs text-primary hover:underline"
+          >
+            발행 이력에서 확인
+          </Link>
+        </Card>
+      )}
 
       {results && (
         <Card className="p-4 space-y-2">
