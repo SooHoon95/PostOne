@@ -7,17 +7,18 @@ import {
   type PeerlistBridge,
   type PeerlistBridgeWindow,
   type PeerlistSendResult,
+  type RedditDraftInput,
 } from "@/lib/extension/peerlist-bridge";
 
 export type PeerlistExtensionState = "checking" | "ready" | "missing";
 
 /**
- * Peerlist 크롬 익스텐션 설치 여부와 초안 전송을 다루는 훅.
+ * PostOne 크롬 익스텐션 연결 상태 + 초안 전송 (Peerlist · Reddit 공용).
  *
  * content script는 document_idle에 로드될 수 있어 PING을 몇 번 다시 보내고,
  * 약 2.6초 동안 응답이 없을 때만 "missing"(복사 폴백 안내)으로 확정한다.
  */
-export function usePeerlistExtension() {
+export function useExtensionBridge() {
   const [state, setState] = useState<PeerlistExtensionState>("checking");
   const bridgeRef = useRef<PeerlistBridge | null>(null);
 
@@ -52,13 +53,33 @@ export function usePeerlistExtension() {
     };
   }, []);
 
-  const sendDraft = useCallback(async (content: string): Promise<PeerlistSendResult> => {
-    const bridge = bridgeRef.current;
-    if (!bridge) return { ok: false, reason: "no-extension" };
-    const result = await bridge.sendDraft(content);
-    if (!result.ok && result.reason === "no-extension") setState("missing");
-    return result;
-  }, []);
+  const sendDraft = useCallback(
+    async (content: string): Promise<PeerlistSendResult> => {
+      const bridge = bridgeRef.current;
+      if (!bridge) return { ok: false, reason: "no-extension" };
+      const result = await bridge.sendDraft(content);
+      if (!result.ok && result.reason === "no-extension") setState("missing");
+      return result;
+    },
+    []
+  );
 
+  const sendRedditDraft = useCallback(
+    async (draft: RedditDraftInput): Promise<PeerlistSendResult> => {
+      const bridge = bridgeRef.current;
+      if (!bridge) return { ok: false, reason: "no-extension" };
+      const result = await bridge.sendRedditDraft(draft);
+      if (!result.ok && result.reason === "no-extension") setState("missing");
+      return result;
+    },
+    []
+  );
+
+  return { state, sendDraft, sendRedditDraft };
+}
+
+/** Peerlist만 쓰는 화면용 별칭 */
+export function usePeerlistExtension() {
+  const { state, sendDraft } = useExtensionBridge();
   return { state, sendDraft };
 }

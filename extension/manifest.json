@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "PostOne Peerlist Bridge",
-  "version": "1.0.0",
-  "description": "PostOne AI 초안을 Peerlist 작성창에 채우는 브리지",
+  "name": "PostOne Bridge",
+  "version": "1.1.0",
+  "description": "PostOne AI 초안을 Peerlist·Reddit 작성창에 채우는 브리지",
   "permissions": ["storage", "activeTab", "tabs"],
   "host_permissions": [
     "https://peerlist.io/*",
+    "https://www.reddit.com/*",
     "https://postone-sigma.vercel.app/*",
     "http://localhost:3000/*"
   ],
@@ -14,7 +15,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "PostOne Peerlist"
+    "default_title": "PostOne Bridge"
   },
   "content_scripts": [
     {
@@ -28,6 +29,14 @@
     {
       "matches": ["https://peerlist.io/*"],
       "js": ["content-peerlist.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.reddit.com/submit*",
+        "https://www.reddit.com/r/*/submit*"
+      ],
+      "js": ["content-reddit.js"],
       "run_at": "document_idle"
     }
   ]

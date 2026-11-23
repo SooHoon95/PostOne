@@ -7,7 +7,18 @@
  *
  * 확장 쪽 구현은 `extension/` 아래 순수 JS라 TypeScript를 import할 수 없으므로
  * 메시지 타입 문자열·저장 키는 양쪽에 같은 값으로 적혀 있다(tests/extension-manifest 참고).
+ *
+ * 같은 채널로 Reddit 초안(제목·본문·서브레딧)도 보낸다 — 확장은 저장한 뒤
+ * popup의 'Reddit 작성창에 채우기'로 reddit.com/submit 을 채운다(게시는 사용자).
  */
+import {
+  REDDIT_DRAFT_STORAGE_KEY,
+  validateRedditDraftInput,
+  type RedditDraftInput,
+  type RedditExtensionDraft,
+} from "./reddit-draft";
+
+export { REDDIT_DRAFT_STORAGE_KEY, type RedditDraftInput };
 
 export const POSTONE_WEB_SOURCE = "postone-web";
 export const PEERLIST_EXTENSION_SOURCE = "postone-extension";
@@ -19,6 +30,8 @@ export const PEERLIST_MESSAGE = {
   ping: "POSTONE_EXTENSION_PING",
   /** 웹 → 익스텐션: Peerlist 초안 저장 요청 */
   draft: "POSTONE_PEERLIST_DRAFT",
+  /** 웹 → 익스텐션: Reddit 초안(제목·본문·서브레딧) 저장 요청 */
+  redditDraft: "POSTONE_REDDIT_DRAFT",
   /** 익스텐션 → 웹: 저장 결과 */
   ack: "POSTONE_EXTENSION_ACK",
 } as const;
@@ -110,6 +123,26 @@ export function buildPeerlistDraftMessage(
   };
 }
 
+/** Reddit 초안 — 확장 background가 chrome.storage.local["redditDraft"]에 저장한다. */
+export function buildRedditDraftMessage(
+  draft: RedditExtensionDraft
+): {
+  source: typeof POSTONE_WEB_SOURCE;
+  type: typeof PEERLIST_MESSAGE.redditDraft;
+  payload: RedditExtensionDraft;
+} {
+  return {
+    source: POSTONE_WEB_SOURCE,
+    type: PEERLIST_MESSAGE.redditDraft,
+    payload: {
+      subreddit: draft.subreddit,
+      title: draft.title,
+      body: draft.body,
+      updatedAt: draft.updatedAt,
+    },
+  };
+}
+
 /** postMessage를 보낼 수 있는 최소 창 인터페이스(테스트에서 대체 가능) */
 export type PeerlistBridgeWindow = {
   postMessage(message: unknown, targetOrigin: string): void;
@@ -147,6 +180,11 @@ export type PeerlistBridge = {
   /** 초안 전송 — ACK 성공 여부를 결과로 돌려준다 */
   sendDraft(
     content: string,
+    options?: { updatedAt?: string; waitReadyMs?: number }
+  ): Promise<PeerlistSendResult>;
+  /** Reddit 초안 전송 — 제목·본문·서브레딧을 확장 저장소로 넘긴다 */
+  sendRedditDraft(
+    draft: RedditDraftInput,
     options?: { updatedAt?: string; waitReadyMs?: number }
   ): Promise<PeerlistSendResult>;
   dispose(): void;
@@ -265,6 +303,33 @@ export function createPeerlistBridge(
     });
   }
 
+  /** 공통 전송 — PING 대기·중복 방지·ACK 타임아웃 처리 */
+  async function sendMessage(
+    message: unknown,
+    waitReadyMs?: number
+  ): Promise<PeerlistSendResult> {
+    if (disposed) return { ok: false, reason: "no-extension" };
+    if (!ready) {
+      const installed = await waitForReady(waitReadyMs ?? readyTimeoutMs);
+      if (!installed) return { ok: false, reason: "no-extension" };
+    }
+    if (pending) {
+      return {
+        ok: false,
+        reason: "rejected",
+        message: "이전 전송을 기다리는 중입니다.",
+      };
+    }
+    return new Promise<PeerlistSendResult>((resolve) => {
+      const timer = setTimeout(() => {
+        pending = null;
+        resolve({ ok: false, reason: "timeout" });
+      }, ackTimeoutMs);
+      pending = { resolve, timer };
+      post(message);
+    });
+  }
+
   return {
     get isReady() {
       return ready;
@@ -289,27 +354,28 @@ export function createPeerlistBridge(
           message: "초안이 비어 있습니다.",
         };
       }
-      if (!ready) {
-        const installed = await waitForReady(waitReadyMs ?? readyTimeoutMs);
-        if (!installed) return { ok: false, reason: "no-extension" };
-      }
-      if (pending) {
+      return sendMessage(
+        buildPeerlistDraftMessage(content, updatedAt ?? now().toISOString()),
+        waitReadyMs
+      );
+    },
+    async sendRedditDraft(draft, { updatedAt, waitReadyMs } = {}) {
+      if (disposed) return { ok: false, reason: "no-extension" };
+      const validated = validateRedditDraftInput(draft);
+      if (!validated.ok) {
         return {
           ok: false,
           reason: "rejected",
-          message: "이전 전송을 기다리는 중입니다.",
+          message: validated.message,
         };
       }
-      return new Promise<PeerlistSendResult>((resolve) => {
-        const timer = setTimeout(() => {
-          pending = null;
-          resolve({ ok: false, reason: "timeout" });
-        }, ackTimeoutMs);
-        pending = { resolve, timer };
-        post(
-          buildPeerlistDraftMessage(content, updatedAt ?? now().toISOString())
-        );
-      });
+      const payload: RedditExtensionDraft = {
+        subreddit: validated.draft.subreddit ?? "",
+        title: validated.draft.title,
+        body: validated.draft.body,
+        updatedAt: updatedAt ?? now().toISOString(),
+      };
+      return sendMessage(buildRedditDraftMessage(payload), waitReadyMs);
     },
     dispose() {
       disposed = true;

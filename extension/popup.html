@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>PostOne Peerlist</title>
+    <title>PostOne Bridge</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
@@ -11,34 +11,73 @@
       <div class="title">
         <span class="brand">PostOne</span>
         <span class="divider">·</span>
-        <span class="channel">Peerlist</span>
+        <span class="channel">Bridge</span>
       </div>
       <span id="extension-state" class="badge" data-state="unknown">확인 중</span>
     </header>
 
     <main class="main">
-      <label class="field-label" for="draft">Peerlist 초안</label>
-      <textarea
-        id="draft"
-        class="draft"
-        rows="9"
-        spellcheck="false"
-        placeholder="PostOne에서 AI 변환 후 'Peerlist 확장으로 전송'을 누르면 여기에 표시됩니다"
-      ></textarea>
+      <section class="section">
+        <div class="section-head">
+          <label class="field-label channel-peerlist" for="draft">Peerlist 초안</label>
+          <span id="updated" class="meta-inline">최근 수신 없음</span>
+        </div>
+        <textarea
+          id="draft"
+          class="draft"
+          rows="8"
+          spellcheck="false"
+          placeholder="PostOne에서 AI 변환 후 'Peerlist 확장으로 전송'을 누르면 여기에 표시됩니다"
+        ></textarea>
 
-      <div class="meta">
-        <span id="updated">최근 수신 없음</span>
-        <span id="count">0 / 700</span>
-      </div>
+        <div class="meta">
+          <span id="count">0 / 700</span>
+        </div>
 
-      <p id="status" class="status" role="status"></p>
+        <p id="status" class="status" role="status"></p>
 
-      <div class="actions">
-        <button id="fill" class="button primary" type="button">작성창에 채우기</button>
-        <button id="open" class="button secondary" type="button">Peerlist 열기</button>
-      </div>
+        <div class="actions">
+          <button id="fill" class="button primary" type="button">작성창에 채우기</button>
+          <button id="open" class="button secondary" type="button">Peerlist 열기</button>
+        </div>
+        <p class="hint">작성창만 채웁니다 — Peerlist에서 확인 후 직접 게시</p>
+      </section>
 
-      <p class="hint">작성창만 채웁니다 — Peerlist에서 확인 후 직접 게시</p>
+      <hr class="sep" />
+
+      <section class="section">
+        <div class="section-head">
+          <label class="field-label channel-reddit" for="reddit-title">Reddit 초안</label>
+          <span id="reddit-meta" class="meta-inline">최근 수신 없음</span>
+        </div>
+        <input
+          id="reddit-title"
+          class="input"
+          type="text"
+          spellcheck="false"
+          placeholder="Reddit 제목"
+        />
+        <textarea
+          id="reddit-body"
+          class="draft draft-reddit"
+          rows="6"
+          spellcheck="false"
+          placeholder="PostOne에서 'Reddit 확장으로 전송'을 누르면 여기에 표시됩니다"
+        ></textarea>
+
+        <div class="meta">
+          <span id="reddit-sub">서브레딧 미지정</span>
+          <span id="reddit-count">0 / 40000</span>
+        </div>
+
+        <p id="reddit-status" class="status" role="status"></p>
+
+        <div class="actions">
+          <button id="reddit-fill" class="button primary" type="button">작성창에 채우기</button>
+          <button id="reddit-open" class="button secondary" type="button">Reddit 열기</button>
+        </div>
+        <p class="hint">제목·본문만 채웁니다 — Reddit에서 확인 후 직접 게시</p>
+      </section>
     </main>
 
     <script src="popup.js"></script>

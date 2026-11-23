@@ -6,6 +6,7 @@ import { CHANNEL_LIMITS } from "@/lib/ai/types";
 import {
   PEERLIST_DRAFT_STORAGE_KEY,
   PEERLIST_MESSAGE,
+  REDDIT_DRAFT_STORAGE_KEY,
 } from "@/lib/extension/peerlist-bridge";
 
 const ROOT = path.resolve(__dirname, "..");
@@ -28,6 +29,7 @@ const JS_FILES = [
   "background.js",
   "content-postone.js",
   "content-peerlist.js",
+  "content-reddit.js",
   "popup.js",
 ];
 
@@ -42,10 +44,11 @@ describe("extension/manifest.json", () => {
     );
   });
 
-  it("has host permissions for Peerlist, prod PostOne and local PostOne", () => {
+  it("has host permissions for Peerlist, Reddit, prod PostOne and local PostOne", () => {
     expect(new Set(manifest.host_permissions)).toEqual(
       new Set([
         "https://peerlist.io/*",
+        "https://www.reddit.com/*",
         "https://postone-sigma.vercel.app/*",
         "http://localhost:3000/*",
       ])
@@ -81,6 +84,16 @@ describe("extension/manifest.json", () => {
     expect(peerlist?.matches).toEqual(["https://peerlist.io/*"]);
   });
 
+  it("injects content-reddit on both Reddit submit URLs", () => {
+    const reddit = manifest.content_scripts.find((script) =>
+      script.js.includes("content-reddit.js")
+    );
+    expect(reddit?.matches).toEqual([
+      "https://www.reddit.com/submit*",
+      "https://www.reddit.com/r/*/submit*",
+    ]);
+  });
+
   it("loads scripts after the document is ready", () => {
     for (const script of manifest.content_scripts) {
       expect(script.run_at).toBe("document_idle");
@@ -102,14 +115,21 @@ describe("extension scripts", () => {
       expect(postone, type).toContain(type);
     }
     expect(postone).toContain(PEERLIST_DRAFT_STORAGE_KEY);
+    expect(postone).toContain(REDDIT_DRAFT_STORAGE_KEY);
 
     const background = read("background.js");
     expect(background).toContain(PEERLIST_DRAFT_STORAGE_KEY);
     expect(background).toContain("POSTONE_PEERLIST_FILL");
+    expect(background).toContain(REDDIT_DRAFT_STORAGE_KEY);
+    expect(background).toContain("POSTONE_REDDIT_FILL");
 
     const peerlist = read("content-peerlist.js");
     expect(peerlist).toContain("POSTONE_PEERLIST_FILL");
     expect(peerlist).toContain("POSTONE_PEERLIST_STATUS");
+
+    const reddit = read("content-reddit.js");
+    expect(reddit).toContain("POSTONE_REDDIT_FILL");
+    expect(reddit).toContain("POSTONE_REDDIT_STATUS");
   });
 
   it("keep the popup character guard at CHANNEL_LIMITS.peerlist.content", () => {
@@ -117,6 +137,18 @@ describe("extension scripts", () => {
     const match = popup.match(/const DRAFT_MAX = (\d+);/);
     expect(match).not.toBeNull();
     expect(Number(match?.[1])).toBe(CHANNEL_LIMITS.peerlist.content);
+  });
+
+  it("keep the Reddit guards at CHANNEL_LIMITS.reddit", () => {
+    const popup = read("popup.js");
+    const title = popup.match(/const REDDIT_TITLE_MAX = (\d+);/);
+    const body = popup.match(/const REDDIT_BODY_MAX = (\d+);/);
+    expect(Number(title?.[1])).toBe(CHANNEL_LIMITS.reddit.title);
+    expect(Number(body?.[1])).toBe(CHANNEL_LIMITS.reddit.content);
+
+    const background = read("background.js");
+    expect(background).toContain(`REDDIT_TITLE_MAX = ${CHANNEL_LIMITS.reddit.title}`);
+    expect(background).toContain(`REDDIT_BODY_MAX = ${CHANNEL_LIMITS.reddit.content}`);
   });
 
   it("never click a submit/post button (fill only, user posts)", () => {

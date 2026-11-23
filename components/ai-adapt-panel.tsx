@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { usePeerlistExtension } from "@/lib/hooks/use-peerlist-extension";
+import { useExtensionBridge } from "@/lib/hooks/use-peerlist-extension";
 import {
   CHANNEL_LIMITS,
   type AdaptedChannelContent,
@@ -75,11 +75,14 @@ export function AiAdaptPanel({
   sourceText,
   channels,
   subreddit,
+  redditConnected,
   onApply,
 }: {
   sourceText: string;
   channels: AIChannel[];
   subreddit?: string;
+  /** Reddit OAuth 연결 여부 — 미연결이면 확장 전송으로 안내한다. */
+  redditConnected?: boolean;
   onApply: (payload: AiApplyPayload) => void;
 }) {
   const [language, setLanguage] = useState<AILanguage>("auto");
@@ -92,17 +95,22 @@ export function AiAdaptPanel({
   );
   const [applied, setApplied] = useState(false);
   const [copied, setCopied] = useState(false);
-  const peerlistExtension = usePeerlistExtension();
+  const extension = useExtensionBridge();
   const [peerlistSent, setPeerlistSent] = useState<
     "idle" | "sending" | "sent"
   >("idle");
   const [peerlistNotice, setPeerlistNotice] = useState<string | null>(null);
+  const [redditSent, setRedditSent] = useState<"idle" | "sending" | "sent">(
+    "idle"
+  );
+  const [redditNotice, setRedditNotice] = useState<string | null>(null);
+  const [redditCopied, setRedditCopied] = useState(false);
 
   const canRun = sourceText.trim().length > 0 && channels.length > 0;
   const extensionLabel =
-    peerlistExtension.state === "ready"
+    extension.state === "ready"
       ? "확장 연결됨"
-      : peerlistExtension.state === "checking"
+      : extension.state === "checking"
         ? "확장 확인 중"
         : "확장 미설치 — 복사로 대체";
 
@@ -239,7 +247,7 @@ export function AiAdaptPanel({
     if (!text.trim()) return;
     setPeerlistSent("sending");
     setPeerlistNotice(null);
-    const result = await peerlistExtension.sendDraft(text);
+    const result = await extension.sendDraft(text);
     if (result.ok) {
       setPeerlistSent("sent");
       setPeerlistNotice(
@@ -254,6 +262,48 @@ export function AiAdaptPanel({
         ? "확장 미연결 — 초안을 복사했습니다. Peerlist에 붙여넣어 주세요."
         : "확장 미연결, 복사도 실패 — 본문을 직접 선택해 복사해 주세요."
     );
+  }
+
+  function resetRedditSendState() {
+    setRedditSent("idle");
+    setRedditNotice(null);
+  }
+
+  /**
+   * Reddit OAuth 가 막혀 있어도 확장이 reddit.com 글쓰기 창을 채울 수 있도록
+   * 제목·본문·서브레딧 힌트를 넘긴다. 미설치면 제목+본문 복사로 대체.
+   */
+  async function sendReddit(title: string, body: string) {
+    if (!title.trim() || !body.trim()) return;
+    setRedditSent("sending");
+    setRedditNotice(null);
+    const result = await extension.sendRedditDraft({
+      subreddit: subreddit?.trim() || undefined,
+      title,
+      body,
+    });
+    if (result.ok) {
+      setRedditSent("sent");
+      setRedditNotice(
+        "확장에 저장됨 — 툴바 PostOne 아이콘에서 'Reddit 작성창에 채우기'"
+      );
+      return;
+    }
+    setRedditSent("idle");
+    const copiedNow = await copyToClipboard(`${title.trim()}\n\n${body.trim()}`);
+    setRedditNotice(
+      copiedNow
+        ? "확장 미연결 — 제목·본문을 복사했습니다. reddit.com/submit에 붙여넣어 주세요."
+        : "확장 미연결, 복사도 실패 — 본문을 직접 선택해 복사해 주세요."
+    );
+  }
+
+  async function copyReddit(title: string, body: string) {
+    const ok = await copyToClipboard(`${title.trim()}\n\n${body.trim()}`);
+    if (ok) {
+      setRedditCopied(true);
+      window.setTimeout(() => setRedditCopied(false), 2000);
+    }
   }
 
   function renderBlock(channel: AIChannel) {
@@ -367,33 +417,75 @@ export function AiAdaptPanel({
     }
 
     if (channel === "reddit" && draft?.reddit) {
+      const reddit = draft.reddit;
       return (
         <div key={channel} className="space-y-2 rounded-md border border-border p-3">
-          <div className="flex items-center justify-between">
-            <p className={cn("text-xs font-medium", ACCENT[channel])}>Reddit</p>
-            <Counter
-              length={draft.reddit.content.length}
-              max={CHANNEL_LIMITS.reddit.content}
-            />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <p className={cn("text-xs font-medium", ACCENT[channel])}>Reddit</p>
+              {redditConnected === false && (
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                  OAuth 미연결
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Counter
+                length={reddit.content.length}
+                max={CHANNEL_LIMITS.reddit.content}
+              />
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => void sendReddit(reddit.title, reddit.content)}
+                disabled={redditSent === "sending" || !reddit.title.trim()}
+              >
+                {redditSent === "sending"
+                  ? "전송 중..."
+                  : redditSent === "sent"
+                    ? "확장으로 전송됨"
+                    : "Reddit 확장으로 전송"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void copyReddit(reddit.title, reddit.content)}
+              >
+                {redditCopied ? "복사됨" : "Reddit 초안 복사"}
+              </Button>
+            </div>
           </div>
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">제목</p>
             <Counter
-              length={draft.reddit.title.length}
+              length={reddit.title.length}
               max={CHANNEL_LIMITS.reddit.title}
             />
           </div>
           <Input
             aria-label="Reddit 변환 제목"
-            value={draft.reddit.title}
-            onChange={(e) => setReddit({ title: e.target.value })}
+            value={reddit.title}
+            onChange={(e) => {
+              setReddit({ title: e.target.value });
+              resetRedditSendState();
+            }}
           />
           <Textarea
             aria-label="Reddit 변환 본문"
-            value={draft.reddit.content}
+            value={reddit.content}
             rows={8}
-            onChange={(e) => setReddit({ content: e.target.value })}
+            onChange={(e) => {
+              setReddit({ content: e.target.value });
+              resetRedditSendState();
+            }}
           />
+          <p className="text-xs text-muted-foreground" role="status">
+            {redditNotice ??
+              (redditConnected === false
+                ? `${extensionLabel} · OAuth 미연결 — 확장으로 reddit.com 글쓰기 창에 채운 뒤 직접 게시`
+                : `${extensionLabel} · 확장 설치 후 작성창에 한 번에 채우기`)}
+          </p>
         </div>
       );
     }
