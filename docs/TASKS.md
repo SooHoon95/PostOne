@@ -9,7 +9,8 @@
 ## To Do
 
 ### 다음 구현 (계획: `docs/plans/2026-05-31-draft-image-schedule.md` · 순차)
-- [ ] ③ 예약 발행 (+토큰갱신 cron 묶음) — Supabase pg_cron + cron route, scheduled_at/status/재시도 · Phase 2 ← 다음
+- [ ] 예약 발행 인프라 설정 — `0009_scheduled_posts.sql` 적용 + Supabase pg_cron/pg_net 등록 + Vercel `CRON_SECRET`·`SUPABASE_SERVICE_ROLE_KEY` 확인
+- [ ] Reddit API 경로 재개 — Responsible Builder Policy 로 신규 OAuth 앱 생성 제한. 승인 가능해지면 기존 OAuth 코드(1단계)로 전환, 익스텐션 채우기는 폴백으로 유지
 
 ### 기타
 - [ ] 보안 강화(리뷰 LOW) — upload.ts `server-only`+BUCKET 분리 · storage.objects RLS 정책 · 버킷 allowed_mime_types/file_size_limit · 업로드 경로 랜덤 suffix · refresh_token 만료 추적
@@ -23,6 +24,11 @@
 
 ## Done (최근)
 
+- [x] Reddit 익스텐션 채우기 — `content-reddit.js`(제목·본문 contenteditable·서브레딧 힌트), background `redditDraft` 저장·탭 열기(r/<sub>/submit)·채우기, popup Reddit 섹션, AI 패널 'Reddit 확장으로 전송'·OAuth 미연결 안내, manifest v1.1 · 2026-11-23
+- [x] 예약 발행 — `scheduled_posts` 큐(migration 0009) + `claim_due_scheduled_posts` RPC(FOR UPDATE SKIP LOCKED·10분 stale 회수) + `/api/cron/publish`·`/api/cron/refresh-tokens`(CRON_SECRET) + `/compose` 즉시/예약 토글 + 발행 이력 예약 섹션·취소, attempts 재시도·batch_id 중복 방지 · 2026-11-23
+- [x] 3단계 Peerlist — 크롬 익스텐션 MVP + AI 패널 전송 연동 + 브리지 검증 · 2026-11-22
+- [x] 2단계 AI 채널별 변환 — 5채널 프롬프트·프로바이더(Claude/OpenAI)·/api/ai/adapt·패널에서 채널별 본문 발행 연동 · 2026-11-22
+- [x] 1단계 Reddit — OAuth2(permanent)·토큰 자동 갱신, 서브레딧/제목/링크/플레어 발행·기록(migration 0008) · 2026-11-22
 - [x] 발행 상세 페이지(/history/[id]) — 본문 + 채널별 결과 + 인스타 카드 이미지, 카드 클릭 진입. 인스타 기록 content=본문 · 2026-05-31
 - [x] 발행이력 개편 — batch_id 본문별 묶음 + 채널 탭(전체/LinkedIn/Threads/IG), migration 0006 · 2026-05-31
 - [x] 저장글 관리 페이지(/drafts) — 본문 미리보기/이어쓰기/삭제 + nav 링크 · 2026-05-31
