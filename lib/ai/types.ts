@@ -74,7 +74,7 @@ export type AdaptRequest = {
 };
 
 export type AdaptResult = {
-  provider: "anthropic" | "openai";
+  provider: "anthropic" | "openai" | "gemini";
   model: string;
   channels: Partial<AdaptedChannelContent>;
   warnings: string[];

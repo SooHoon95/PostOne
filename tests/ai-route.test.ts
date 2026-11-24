@@ -10,10 +10,13 @@ vi.mock("@/lib/auth/get-user", () => ({
 }));
 
 const ENV_KEYS = [
+  "AI_PROVIDER",
   "ANTHROPIC_API_KEY",
   "ANTHROPIC_MODEL",
   "OPENAI_API_KEY",
   "OPENAI_MODEL",
+  "GEMINI_API_KEY",
+  "GEMINI_MODEL",
 ] as const;
 
 const savedEnv: Record<string, string | undefined> = {};
@@ -101,6 +104,7 @@ describe("POST /api/ai/adapt", () => {
     expect(body.error).toBe("AI_NOT_CONFIGURED");
     expect(body.message).toMatch(/ANTHROPIC_API_KEY/);
     expect(body.message).toMatch(/OPENAI_API_KEY/);
+    expect(body.message).toMatch(/GEMINI_API_KEY/);
   });
 
   it("returns the adapted channels when the provider answers", async () => {
@@ -132,6 +136,46 @@ describe("POST /api/ai/adapt", () => {
     expect(body.channels.linkedin.content).toBe("링크드인 본문");
     expect(body.channels.peerlist.content).toBe("피어리스트 초안");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns the adapted channels from Gemini when only that key exists", async () => {
+    process.env.GEMINI_API_KEY = "g-test";
+    getUserMock.mockResolvedValue({ id: "user-1", email_confirmed_at: "t" });
+
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  text: JSON.stringify({
+                    channels: {
+                      linkedin: { content: "제미나이 본문" },
+                      peerlist: { content: "제미나이 초안" },
+                    },
+                  }),
+                },
+              ],
+            },
+            finishReason: "STOP",
+          },
+        ],
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { status, body } = await callRoute(validBody);
+    expect(status).toBe(200);
+    expect(body.provider).toBe("gemini");
+    expect(body.model).toBe("gemini-3.8-flash");
+    expect(body.channels.linkedin.content).toBe("제미나이 본문");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const [url] = fetchMock.mock.calls[0] as unknown as [string];
+    expect(url).toContain(":generateContent");
   });
 
   it("returns 502 when the provider fails", async () => {

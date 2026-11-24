@@ -55,6 +55,52 @@ describe("resolveAiConfig / isAiConfigured", () => {
     expect(config.model).toBe("claude-custom");
   });
 
+  it("falls back to Gemini when only that key exists", () => {
+    const gemini = resolveAiConfig({ GEMINI_API_KEY: "g-test" });
+    expect(gemini.provider).toBe("gemini");
+    expect(gemini.model).toBe("gemini-3.8-flash");
+    expect(isAiConfigured({ GEMINI_API_KEY: "g-test" })).toBe(true);
+  });
+
+  it("keeps the documented provider order", () => {
+    expect(
+      resolveAiConfig({
+        ANTHROPIC_API_KEY: "a",
+        OPENAI_API_KEY: "b",
+        GEMINI_API_KEY: "c",
+      }).provider
+    ).toBe("anthropic");
+    expect(
+      resolveAiConfig({ OPENAI_API_KEY: "b", GEMINI_API_KEY: "c" }).provider
+    ).toBe("openai");
+  });
+
+  it("honours GEMINI_MODEL and AI_PROVIDER", () => {
+    expect(
+      resolveAiConfig({
+        GEMINI_API_KEY: "g",
+        GEMINI_MODEL: "gemini-3.5-flash-lite",
+      }).model
+    ).toBe("gemini-3.5-flash-lite");
+
+    const forced = resolveAiConfig({
+      AI_PROVIDER: "gemini",
+      ANTHROPIC_API_KEY: "a",
+      GEMINI_API_KEY: "g",
+    });
+    expect(forced.provider).toBe("gemini");
+    expect(forced.model).toBe("gemini-3.8-flash");
+  });
+
+  it("refuses when AI_PROVIDER names a provider without a key", () => {
+    expect(isAiConfigured({ AI_PROVIDER: "gemini", OPENAI_API_KEY: "b" })).toBe(
+      false
+    );
+    expect(() =>
+      resolveAiConfig({ AI_PROVIDER: "gemini", OPENAI_API_KEY: "b" })
+    ).toThrow(/GEMINI_API_KEY/);
+  });
+
   it("ignores blank keys", () => {
     expect(isAiConfigured({ ANTHROPIC_API_KEY: "   " })).toBe(false);
   });
@@ -271,6 +317,144 @@ describe("adaptContent", () => {
       "system",
       "user",
     ]);
+  });
+
+  it("calls the Gemini generateContent API and parses the JSON", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({
+        candidates: [
+          {
+            content: {
+              parts: [
+                { text: "생각 과정", thought: true },
+                {
+                  text: JSON.stringify({
+                    channels: {
+                      linkedin: { content: "제미나이 본문" },
+                      peerlist: { content: "피어리스트 초안" },
+                    },
+                  }),
+                },
+              ],
+            },
+            finishReason: "STOP",
+          },
+        ],
+      })
+    );
+
+    const result = await adaptContent(request, {
+      env: { GEMINI_API_KEY: "g-test" },
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    expect(result.provider).toBe("gemini");
+    expect(result.model).toBe("gemini-3.8-flash");
+    expect(result.channels.linkedin?.content).toBe("제미나이 본문");
+    expect(result.channels.peerlist?.content).toBe("피어리스트 초안");
+
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [
+      string,
+      RequestInit
+    ];
+    expect(url).toBe(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"
+    );
+    const headers = init.headers as Record<string, string>;
+    expect(headers["x-goog-api-key"]).toBe("g-test");
+    expect(headers.authorization).toBeUndefined();
+
+    const body = JSON.parse(String(init.body));
+    expect(body.systemInstruction.parts[0].text).toMatch(/single JSON object/);
+    expect(body.contents).toEqual([
+      {
+        role: "user",
+        parts: [{ text: expect.stringContaining(request.sourceText) }],
+      },
+    ]);
+    expect(body.generationConfig.responseMimeType).toBe("application/json");
+    expect(body.generationConfig.maxOutputTokens).toBeGreaterThan(8192);
+    expect(body.generationConfig.thinkingConfig).toEqual({ thinkingLevel: "LOW" });
+    // Gemini 3.6 이상은 temperature를 무시하므로 보내지 않는다.
+    expect(body.generationConfig.temperature).toBeUndefined();
+  });
+
+  it("omits thinkingConfig for models that do not take it", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({
+        candidates: [
+          { content: { parts: [{ text: '{"linkedin":{"content":"본문"}}' }] } },
+        ],
+      })
+    );
+
+    await adaptContent(request, {
+      env: { GEMINI_API_KEY: "g", GEMINI_MODEL: "gemini-2.5-flash" },
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [
+      string,
+      RequestInit
+    ];
+    expect(url).toContain("/models/gemini-2.5-flash:generateContent");
+    const body = JSON.parse(String(init.body));
+    expect(body.generationConfig.thinkingConfig).toBeUndefined();
+  });
+
+  it("surfaces a Gemini block reason", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({ promptFeedback: { blockReason: "SAFETY" }, candidates: [] })
+    );
+
+    await expect(
+      adaptContent(request, {
+        env: { GEMINI_API_KEY: "g" },
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      })
+    ).rejects.toThrow(/SAFETY/);
+  });
+
+  it("maps Gemini quota errors to AiRequestError", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse(
+        {
+          error: {
+            code: 429,
+            message: "Quota exceeded",
+            status: "RESOURCE_EXHAUSTED",
+          },
+        },
+        false,
+        429
+      )
+    );
+
+    await expect(
+      adaptContent(request, {
+        env: { GEMINI_API_KEY: "g" },
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      })
+    ).rejects.toMatchObject({
+      name: "AiRequestError",
+      message: "Quota exceeded",
+      status: 429,
+    });
+  });
+
+  it("rejects a Gemini answer with no text parts", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({
+        candidates: [{ content: { parts: [] }, finishReason: "MAX_TOKENS" }],
+      })
+    );
+
+    await expect(
+      adaptContent(request, {
+        env: { GEMINI_API_KEY: "g" },
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      })
+    ).rejects.toBeInstanceOf(AiParseError);
   });
 
   it("surfaces provider error messages", async () => {

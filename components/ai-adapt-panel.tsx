@@ -49,8 +49,14 @@ const LANGUAGE_OPTION: { value: AILanguage; label: string }[] = [
   { value: "en", label: "English" },
 ];
 
+const PROVIDER_LABEL: Record<string, string> = {
+  anthropic: "Claude",
+  openai: "OpenAI",
+  gemini: "Gemini",
+};
+
 type AdaptResponse = {
-  provider: "anthropic" | "openai";
+  provider: "anthropic" | "openai" | "gemini";
   model: string;
   channels: Partial<AdaptedChannelContent>;
   warnings?: string[];
@@ -587,7 +593,7 @@ export function AiAdaptPanel({
         <div className="space-y-3">
           {meta && (
             <p className="text-xs text-muted-foreground">
-              {meta.provider === "anthropic" ? "Claude" : "OpenAI"} · {meta.model}
+              {PROVIDER_LABEL[meta.provider] ?? meta.provider} · {meta.model}
             </p>
           )}
           {channels.map((channel) => renderBlock(channel))}

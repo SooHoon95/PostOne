@@ -14,7 +14,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const NOT_CONFIGURED_MESSAGE =
-  "AI 기능이 아직 설정되지 않았습니다. 서버에 ANTHROPIC_API_KEY 또는 OPENAI_API_KEY를 등록해주세요.";
+  "AI 기능이 아직 설정되지 않았습니다. 서버에 ANTHROPIC_API_KEY · OPENAI_API_KEY · GEMINI_API_KEY 중 하나를 등록해주세요.";
 
 /**
  * POST /api/ai/adapt

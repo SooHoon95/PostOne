@@ -2,8 +2,9 @@
  * AI 채널별 변환 실행기.
  *
  * - 외부 SDK 없이 표준 fetch만 쓴다(Vercel 함수 번들·의존성 최소화).
- * - ANTHROPIC_API_KEY가 있으면 Claude, 없고 OPENAI_API_KEY가 있으면 OpenAI.
- *   둘 다 없으면 AiNotConfiguredError — 라우트가 503으로 변환한다.
+ * - 우선순위: AI_PROVIDER로 강제한 프로바이더 → ANTHROPIC_API_KEY(Claude)
+ *   → OPENAI_API_KEY(OpenAI) → GEMINI_API_KEY(Google Gemini).
+ *   하나도 없으면 AiNotConfiguredError — 라우트가 503으로 변환한다.
  * - 모델 출력은 신뢰하지 않는다: JSON 추출 → 채널별 구조 검증 → 길이 상한 클램프.
  */
 import { buildAdaptMessages } from "./prompts";
@@ -17,7 +18,7 @@ import {
   type InstagramSlide,
 } from "./types";
 
-export type AiProvider = "anthropic" | "openai";
+export type AiProvider = "anthropic" | "openai" | "gemini";
 
 export type AiConfig = {
   provider: AiProvider;
@@ -52,42 +53,92 @@ export class AiParseError extends Error {
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
-/** 기본 모델 — 운영에서 모델을 바꾸려면 ANTHROPIC_MODEL / OPENAI_MODEL을 설정한다. */
+/** 기본 모델 — 운영에서 모델을 바꾸려면 ANTHROPIC_MODEL / OPENAI_MODEL / GEMINI_MODEL을 설정한다. */
 const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-5";
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
+/** Gemini 무료 티어에서 제공되는 최신 Flash 모델 (2026-11 기준 · 2.5 Flash는 deprecated) */
+const DEFAULT_GEMINI_MODEL = "gemini-3.8-flash";
 
 /** 5채널 + 캐러셀 슬라이드까지 들어가는 응답 길이 (한국어는 글자당 토큰이 커서 넉넉히) */
 const MAX_OUTPUT_TOKENS = 8192;
+/** Gemini는 thinking 토큰도 같은 상한을 나눠 쓰고 3·4 세대는 thinking을 끌 수 없다. */
+const GEMINI_MAX_OUTPUT_TOKENS = 16_384;
+/** 톤 변환은 깊은 추론이 필요 없어 지연·토큰을 줄인다(3.6 Flash 이상은 MINIMAL을 받지 않는다). */
+const GEMINI_THINKING_LEVEL = "LOW";
 
 const REQUEST_TIMEOUT_MS = 55_000;
 
 type EnvLike = Record<string, string | undefined>;
 
+const PROVIDER_ORDER: AiProvider[] = ["anthropic", "openai", "gemini"];
+
+const PROVIDER_ENV: Record<
+  AiProvider,
+  { keyEnv: string; modelEnv: string; defaultModel: string }
+> = {
+  anthropic: {
+    keyEnv: "ANTHROPIC_API_KEY",
+    modelEnv: "ANTHROPIC_MODEL",
+    defaultModel: DEFAULT_ANTHROPIC_MODEL,
+  },
+  openai: {
+    keyEnv: "OPENAI_API_KEY",
+    modelEnv: "OPENAI_MODEL",
+    defaultModel: DEFAULT_OPENAI_MODEL,
+  },
+  gemini: {
+    keyEnv: "GEMINI_API_KEY",
+    modelEnv: "GEMINI_MODEL",
+    defaultModel: DEFAULT_GEMINI_MODEL,
+  },
+};
+
+/** AI_PROVIDER=gemini처럼 명시하면 그 프로바이더만 쓴다(키가 없으면 503). 모르는 값은 무시한다. */
+function forcedProvider(env: EnvLike): AiProvider | null {
+  const value = env.AI_PROVIDER?.trim().toLowerCase();
+  return value && (PROVIDER_ORDER as string[]).includes(value)
+    ? (value as AiProvider)
+    : null;
+}
+
+function providerApiKey(provider: AiProvider, env: EnvLike): string | undefined {
+  return env[PROVIDER_ENV[provider].keyEnv]?.trim();
+}
+
+function providerModel(provider: AiProvider, env: EnvLike): string {
+  return (
+    env[PROVIDER_ENV[provider].modelEnv]?.trim() ||
+    PROVIDER_ENV[provider].defaultModel
+  );
+}
+
 export function resolveAiConfig(env: EnvLike = process.env): AiConfig {
-  const anthropicKey = env.ANTHROPIC_API_KEY?.trim();
-  if (anthropicKey) {
-    return {
-      provider: "anthropic",
-      apiKey: anthropicKey,
-      model: env.ANTHROPIC_MODEL?.trim() || DEFAULT_ANTHROPIC_MODEL,
-    };
+  const forced = forcedProvider(env);
+  const candidates = forced ? [forced] : PROVIDER_ORDER;
+
+  for (const provider of candidates) {
+    const apiKey = providerApiKey(provider, env);
+    if (apiKey) {
+      return { provider, apiKey, model: providerModel(provider, env) };
+    }
   }
-  const openaiKey = env.OPENAI_API_KEY?.trim();
-  if (openaiKey) {
-    return {
-      provider: "openai",
-      apiKey: openaiKey,
-      model: env.OPENAI_MODEL?.trim() || DEFAULT_OPENAI_MODEL,
-    };
-  }
-  throw new AiNotConfiguredError();
+
+  throw new AiNotConfiguredError(
+    forced
+      ? `AI_PROVIDER=${forced}로 지정됐지만 ${PROVIDER_ENV[forced].keyEnv}가 비어 있습니다.`
+      : undefined
+  );
 }
 
 export function isAiConfigured(env: EnvLike = process.env): boolean {
-  return Boolean(
-    env.ANTHROPIC_API_KEY?.trim() || env.OPENAI_API_KEY?.trim()
-  );
+  try {
+    resolveAiConfig(env);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** 모델이 코드펜스나 앞말을 붙여도 첫 JSON 객체를 꺼낸다. */
@@ -412,6 +463,81 @@ async function callOpenAI(
   return content;
 }
 
+/**
+ * generationConfig.thinkingConfig.thinkingLevel은 Gemini 3 세대 이상만 받는다
+ * (2.x에 보내면 오류). GEMINI_MODEL을 구형으로 바꾸더라도 요청이 깨지지 않게 한다.
+ */
+function supportsThinkingLevel(model: string): boolean {
+  return /^gemini-(?:3|4)(?:[.-]|$)/i.test(model);
+}
+
+async function callGemini(
+  config: AiConfig,
+  messages: { system: string; user: string },
+  fetchImpl: typeof fetch
+): Promise<string> {
+  const model = config.model.trim().replace(/^models\//, "");
+  const data = await postJson(
+    `${GEMINI_URL}/${encodeURIComponent(model)}:generateContent`,
+    { "x-goog-api-key": config.apiKey },
+    {
+      systemInstruction: { parts: [{ text: messages.system }] },
+      contents: [{ role: "user", parts: [{ text: messages.user }] }],
+      generationConfig: {
+        // thinking 토큰도 이 상한을 함께 쓴다 — 잘리지 않게 넉넉히.
+        maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+        // OpenAI의 response_format({ type: "json_object" })과 같은 역할.
+        responseMimeType: "application/json",
+        ...(supportsThinkingLevel(model)
+          ? { thinkingConfig: { thinkingLevel: GEMINI_THINKING_LEVEL } }
+          : {}),
+      },
+    },
+    fetchImpl
+  );
+
+  if (!isRecord(data)) {
+    throw new AiParseError("AI 응답 형식이 올바르지 않습니다.");
+  }
+  const candidates = Array.isArray(data.candidates) ? data.candidates : [];
+  if (candidates.length === 0) {
+    const blockReason = isRecord(data.promptFeedback)
+      ? asText(data.promptFeedback.blockReason)
+      : "";
+    throw new AiParseError(
+      blockReason
+        ? `Gemini가 요청을 차단했습니다 (${blockReason}).`
+        : "AI 응답 형식이 올바르지 않습니다."
+    );
+  }
+
+  const candidate = candidates[0];
+  const parts =
+    isRecord(candidate) &&
+    isRecord(candidate.content) &&
+    Array.isArray(candidate.content.parts)
+      ? candidate.content.parts
+      : [];
+  // Gemini 3·4는 생각 과정을 thought: true인 part로 섞어 보낸다 — 본문만 꺼낸다.
+  const text = parts
+    .filter((part) => isRecord(part) && part.thought !== true)
+    .map((part) => (isRecord(part) ? asText(part.text) : ""))
+    .filter(Boolean)
+    .join("\n");
+
+  if (!text) {
+    const finishReason = isRecord(candidate) ? asText(candidate.finishReason) : "";
+    if (finishReason === "MAX_TOKENS") {
+      throw new AiParseError("AI 응답이 토큰 한도에서 잘렸습니다.");
+    }
+    if (finishReason && finishReason !== "STOP") {
+      throw new AiParseError(`AI 응답이 중단되었습니다 (${finishReason}).`);
+    }
+    throw new AiParseError("AI 응답이 비어 있습니다.");
+  }
+  return text;
+}
+
 export type AdaptDeps = {
   env?: EnvLike;
   fetchImpl?: typeof fetch;
@@ -426,10 +552,14 @@ export async function adaptContent(
   const fetchImpl = deps.fetchImpl ?? fetch;
   const messages = buildAdaptMessages(request);
 
-  const raw =
-    config.provider === "anthropic"
-      ? await callAnthropic(config, messages, fetchImpl)
-      : await callOpenAI(config, messages, fetchImpl);
+  let raw: string;
+  if (config.provider === "anthropic") {
+    raw = await callAnthropic(config, messages, fetchImpl);
+  } else if (config.provider === "openai") {
+    raw = await callOpenAI(config, messages, fetchImpl);
+  } else {
+    raw = await callGemini(config, messages, fetchImpl);
+  }
 
   const { channels, warnings } = parseAdaptOutput(raw, request.channels);
 
